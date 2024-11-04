@@ -51,6 +51,12 @@ class TabularDataFrame(object):
         logger.info(f"Num of cate columns: {len(self.categorical_columns)}")
         logger.info(f"Num of cont columns: {len(self.continuous_columns)}")
 
+        # 特徴量名を表示
+        feature_columns = [col for col in all_data.columns if col != self.target_column]
+        logger.info("Feature columns    :")
+        for col in feature_columns:
+            logger.info(f"  - {col}")
+
         y = all_data[self.target_column]
         class_ratios = y.value_counts(normalize=True)
         for label, class_ratio in zip(class_ratios.index, class_ratios.values):
