@@ -41,13 +41,10 @@ import copy
 import operator
 from os import path
 from abc import ABCMeta
-from abc import abstractmethod
 
 import numpy as np
-from tempfile import TemporaryDirectory
 from math import copysign
 
-from .helpers import count_keys
 from .rules import RuleSet, Condition, Rule
 
 class BaseRuleEXtractor(metaclass=ABCMeta):
@@ -245,21 +242,7 @@ class GBMClassifierRuleExtractor(BaseRuleExtractor):
 
         :return: an array of :class:`rulecosi.rules.RuleSet'
         """
-        rulesets = []
-        global_condition_map = dict()
-        for tree_index, base_trees in enumerate(self._ensemble):
-            original_ruleset = None
-            for class_index, base_tree in enumerate(base_trees):
-                if len(self.classes_) <= 2:
-                    original_ruleset = self.get_base_ruleset(
-                        self.get_tree_dict(base_tree),
-                        class_index=None, tree_index=tree_index)
-                    
-                else:
-                    S
-            rulesets.append(original_ruleset)
-            global_condition_map.update(original_ruleset.condition_map)
-        return rulesets, global_condition_map
+        pass
 
     def create_new_rule(self, node_index, tree_dict, condition_set=None,
                         logit_score=None, weights=None,
@@ -301,15 +284,11 @@ class GBMClassifierRuleExtractor(BaseRuleExtractor):
             raw_to_proba = expit(logit_score)
             class_dist = get_class_dist(raw_to_proba)
         else:
-            # raw_to_proba = logsumexp(logit_score)
-            class_dist = np.zeros(len(self.classes_))
-            if isinstance(logit_score, np.ndarray):
-                class_dist[class_index] = logsumexp(logit_score)
-            else:
-                class_dist[class_index] = expit(logit_score)
-                # class_dist[class_index] = expit(
-                #     logit_score)  # logsumexp(logit_score)  # softmax(raw_to_proba)
-            # class_dist = logit_score - logsumexp(logit_score)
+            # Print error message for unsupported number of classes
+            print(f"Error: Currently, only binary classification is supported. Number of classes: {len(self.classes_)}")
+
+            # Raise an exception
+            raise ValueError(f"Unsupported number of classes. Currently, only binary classification is supported. Number of classes: {len(self.classes_)}")
 
         # predict y_class_index = np.argmax(class_dist).item()
         # y_class_index = np.argmax(class_dist).item()
@@ -364,38 +343,8 @@ class XGBClassifierExtractor(GBMClassifierRuleExtractor):
         xgb_tree_dicts = booster.get_dump(dump_format='json')
         n_nodes = booster.trees_to_dataframe()[['Tree', 'Node']].groupby(
             'Tree').count().to_numpy()
-        if len(self.classes_) > 2:
-            # ct_list = [(cid, tid)  # class tree pair list
-            #            for tid in [0, 1, 2]
-            #            for cid in self.classes_]
-            # for (t_idx, (xgb_t_dict, (cid, tid))) in enumerate(
-            #         zip(xgb_tree_dicts, ct_list)):
-            t_idx = 0
-            for tid in range(self._ensemble.n_estimators):
-                current_tree_rules = []
-                current_tree_condition_map = dict()
-                for cid, _ in enumerate(self.classes_):
-                    # booster_df = booster.trees_to_dataframe()
-                    # n_nodes = booster_df[booster_df['Tree'] == t_idx][
-                    #     ['Tree', 'Node']].groupby(
-                    #     'Tree').count().to_numpy().item()
-                    original_ruleset = self.get_base_ruleset(
-                        self.get_tree_dict(xgb_tree_dicts[t_idx],
-                                           n_nodes[t_idx]),
-                        class_index=cid, tree_index=tid)
-                    current_tree_rules.extend(original_ruleset.rules)
-                    current_tree_condition_map.update(
-                        original_ruleset.condition_map)
-                    t_idx += 1
-                current_tree_ruleset = RuleSet(current_tree_rules,
-                                               current_tree_condition_map,
-                                               classes=self.classes_)
-                global_condition_map.update(current_tree_ruleset.condition_map)
-                rulesets.append(current_tree_ruleset)
-            return rulesets, global_condition_map
 
-        else:  # binary classification
-
+        if len(self.classes_) == 2:  # binary classification
             for t_idx, xgb_t_dict in enumerate(xgb_tree_dicts):
                 original_ruleset = self.get_base_ruleset(
                     self.get_tree_dict(xgb_t_dict, n_nodes[t_idx]),
@@ -403,6 +352,13 @@ class XGBClassifierExtractor(GBMClassifierRuleExtractor):
                 rulesets.append(original_ruleset)
                 global_condition_map.update(original_ruleset.condition_map)
             return rulesets, global_condition_map
+        else:
+            # Print error message for unsupported number of classes
+            print(f"Error: Currently, only binary classification is supported. Number of classes: {len(self.classes_)}")
+
+            # Raise an exception
+            raise ValueError(f"Unsupported number of classes. Currently, only binary classification is supported. Number of classes: {len(self.classes_)}")
+
 
     # def _get_class_dist(self, raw_to_proba):
     #     return np.array([raw_to_proba.item(), 1 - raw_to_proba.item()])
@@ -525,25 +481,13 @@ class RuleExtractorFactory:
         :return: A BaseRuleExtractor class implementation instantiated object
         to be used for extracting rules from trees
         """
-        if isinstance(base_ensemble, (
-                AdaBoostClassifier, BaggingClassifier, RandomForestClassifier)):
-            return ClassifierRuleExtractor(base_ensemble, column_names, classes,
-                                           X, y, float_threshold)
-        elif isinstance(base_ensemble, GradientBoostingClassifier):
-            return GBMClassifierRuleExtractor(base_ensemble, column_names,
-                                              classes, X, y, float_threshold)
-        elif str(
+        if str(
                 base_ensemble.__class__) == "<class 'xgboost.sklearn.XGBClassifier'>":
             return XGBClassifierExtractor(base_ensemble, column_names, classes,
                                           X, y, float_threshold)
-        elif str(
-                base_ensemble.__class__) == "<class 'lightgbm.sklearn.LGBMClassifier'>":
-            return LGBMClassifierExtractor(base_ensemble, column_names, classes,
-                                           X, y, float_threshold)
-        elif str(
-                base_ensemble.__class__) == "<class 'catboost.core.CatBoostClassifier'>":
-            return CatBoostClassifierExtractor(base_ensemble, column_names,
-                                               classes, X, y, float_threshold)
-        elif isinstance(base_ensemble, DecisionTreeClassifier):
-            return DecisionTreeRuleExtractor(base_ensemble, column_names,
-                                             classes, X, y, float_threshold)
+        else:
+            # Print the error message
+            print(f"Error: Unsupported base_ensemble type: {base_ensemble.__class__}")
+
+            # Optionally, raise an exception
+            raise ValueError(f"Unsupported base_ensemble type: {base_ensemble.__class__}")
