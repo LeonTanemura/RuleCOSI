@@ -45,9 +45,11 @@ from abc import ABCMeta
 import numpy as np
 from math import copysign
 
+from scipy.special import expit
+
 from .rules import RuleSet, Condition, Rule
 
-class BaseRuleEXtractor(metaclass=ABCMeta):
+class BaseRuleExtractor(metaclass=ABCMeta):
     """ Base abstract class for a rule extractor from tree ensembles
 
     """
@@ -212,6 +214,10 @@ class BaseRuleEXtractor(metaclass=ABCMeta):
         op_left = operator.le  # Operator.LESS_OR_EQUAL_THAN
         op_right = operator.gt  # Operator.GREATER_THAN
         return op_left, op_right
+
+    
+def get_class_dist(raw_to_proba):
+    return np.array([1 - raw_to_proba.item(), raw_to_proba.item()])
 
 
 class GBMClassifierRuleExtractor(BaseRuleExtractor):
