@@ -56,7 +56,7 @@ class RuleExtraction():
         self.float_threshold=float_threshold
         self.verbose=verbose
     
-    def rule_extraction():
+    def rule_extraction(self):
         self._bad_combinations=None
         self._good_combinations=None
         self._rule_extractor = None
