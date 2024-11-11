@@ -48,7 +48,7 @@ class RuleExtraction():
 
         self.base_ensemble_=base_ensemble_
         self.column_names=column_names
-        self.classes_classes
+        self.classes_=classes_
         self.X_=X_
         self.y_=y_
         self.cov_threshold = cov_threshold
@@ -64,7 +64,7 @@ class RuleExtraction():
         self._global_condition_map = None
         self.original_rulesets_ = None
 
-         # First step is extract the rules
+        # First step is extract the rules
         self._rule_extractor = RuleExtractorFactory.get_rule_extractor(
             self.base_ensemble_, self.column_names,
             self.classes_, self.X_, self.y_, self.float_threshold)
