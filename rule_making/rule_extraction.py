@@ -46,6 +46,7 @@ import numpy as np
 from math import copysign
 
 from scipy.special import expit
+from sklearn.ensemble import GradientBoostingClassifier
 
 from .rules import RuleSet, Condition, Rule
 
@@ -248,7 +249,23 @@ class GBMClassifierRuleExtractor(BaseRuleExtractor):
 
         :return: an array of :class:`rulecosi.rules.RuleSet'
         """
-        pass
+        rulesets = []
+        global_condition_map = dict()
+        for tree_index, base_trees in enumerate(self._ensemble):
+            original_ruleset = None
+            for class_index, base_tree in enumerate(base_trees):
+                if len(self.classes_) == 2:  # binary classification
+                    original_ruleset = self.get_base_ruleset(
+                        self.get_tree_dict(base_tree),
+                        class_index=None, tree_index=tree_index)
+                else:  # multi-class classification
+                    print(f"Error: Currently, only binary classification is supported. Number of classes: {len(self.classes_)}")
+                    raise ValueError(f"Unsupported number of classes. Currently, only binary classification is supported. Number of classes: {len(self.classes_)}")
+                    
+            rulesets.append(original_ruleset)
+            global_condition_map.update(original_ruleset.condition_map)
+        return rulesets, global_condition_map
+
 
     def create_new_rule(self, node_index, tree_dict, condition_set=None,
                         logit_score=None, weights=None,
@@ -487,7 +504,10 @@ class RuleExtractorFactory:
         :return: A BaseRuleExtractor class implementation instantiated object
         to be used for extracting rules from trees
         """
-        if str(
+        if isinstance(base_ensemble, GradientBoostingClassifier):
+            return GBMClassifierRuleExtractor(base_ensemble, column_names,
+                                              classes, X, y, float_threshold)
+        elif str(
                 base_ensemble.__class__) == "<class 'xgboost.sklearn.XGBClassifier'>":
             return XGBClassifierExtractor(base_ensemble, column_names, classes,
                                           X, y, float_threshold)

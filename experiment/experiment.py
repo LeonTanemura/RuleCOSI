@@ -14,8 +14,6 @@ from .utils import (
     cal_metrics,
     set_seed,
 )
-from rulecosi import XGBTreeExtraction
-from rulecosi import SCPruning
 
 logger = logging.getLogger(__name__)
 
@@ -94,6 +92,9 @@ class ExpBase:
             train_data, val_data = self.train.iloc[train_idx], self.train.iloc[val_idx]
             model, time = self.each_fold(i_fold, train_data, val_data)
 
+            print("rule作成成功")
+            exit() # RuleCOSI+のアルゴリズムを作成しないと以下を実行できない。
+
             score = cal_metrics(model, val_data, self.columns, self.target_column)
             score.update(model.evaluate(val_data[self.columns], val_data[self.target_column].values.squeeze()))
             logger.info(
@@ -119,18 +120,6 @@ class ExpBase:
             score_list_dict[k] = score_list
             logger.info(f"[{self.model_name} {k}]: {mean_std_score[k]}")
         
-        tree_extractor = XGBTreeExtraction(model)
-        
-        ruleset, boost_round, df = tree_extractor.get_tree()
-        print(ruleset[0])
-        print(ruleset[1])
-        print(ruleset[2])
-        print(f"num trees: ", boost_round)
-        # df.to_csv('tree.csv')
-        print(df.head(10))
-
-        pruner = SCPruning(ruleset, 1.0, df)
-        ruleset = pruner.pruning()
 
     def get_model_config(self, *args, **kwargs):
         raise NotImplementedError()

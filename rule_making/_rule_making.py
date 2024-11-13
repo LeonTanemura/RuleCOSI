@@ -76,6 +76,9 @@ class RuleExtraction():
         self._global_condition_map = self._rule_extractor.extract_rules()
         processed_rulesets = copy.deepcopy(self.original_rulesets_)
 
+        # ルールの可視化
+        # print(processed_rulesets)
+
         # We create the heuristics object which will compute all the
         # heuristics related measures
         self._rule_heuristics = RuleHeuristics(X=self.X_, y=self.y_,
