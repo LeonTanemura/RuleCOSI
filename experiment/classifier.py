@@ -5,7 +5,7 @@ from typing import List
 
 import numpy as np
 import xgboost as xgb
-
+from scipy.special import softmax
 from sklearn.metrics import (
     accuracy_score,
     f1_score,
@@ -17,12 +17,14 @@ from sklearn.metrics import (
 from sklearn.utils.multiclass import unique_labels
 from sklearn.utils.validation import check_X_y
 
+import rulecosi
+
 
 class BaseClassifier:
     def __init__(
         self, input_dim, output_dim, model_config, init_y, onehoter, verbose, pre_study=False, pre_model=None
     ) -> None:
-        self.ruleset: RuleSet = None
+        self.ruleset = None
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.model_config = model_config
@@ -65,6 +67,52 @@ class BaseClassifier:
     
     def get_booster(self):
         raise NotImplementedError()
+    
+class RuleCOSIClassifier(BaseClassifier):
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        xgb_config = self.model_config.ensemble
+        rulecosi_config = self.model_config.rulecosi
+
+        if self.output_dim == 2:
+            xgb_config["objective"] = "binary:logitraw"
+        else:
+            xgb_config["objective"] = "multi:softmax"
+
+        if self.pre_model is not None:
+            self.ens = self.pre_model
+        else:
+            self.ens = xgb.XGBClassifier(
+                **xgb_config,
+                num_class=self.output_dim if self.output_dim > 2 else None,
+                eval_metric="auc",
+                early_stopping_rounds=10,
+            )
+        self.rulecosi = rulecosi.RuleCOSIClassifier(
+            base_ensemble = self.ens,
+            metric="auc",
+            **rulecosi_config,
+            verbose=self.verbose,
+        )
+
+    def pre_fit(self, X, y, eval_set):
+        X_xgb, y_xgb = check_X_y(X, y)
+        eval_set_xgb = check_X_y(*eval_set)
+        self.pre_model = self.ens.fit(X_xgb, y_xgb, eval_set=[eval_set_xgb], verbose=False)
+
+    def fit(self, X, y, eval_set):
+        if self.pre_model is None:
+            X_xgb, y_xgb = check_X_y(X, y)
+            eval_set_xgb = check_X_y(*eval_set)
+            self.ens.fit(X_xgb, y_xgb, eval_set=[eval_set_xgb], verbose=False)
+        self.rulecosi.fit(X, y)
+        self.ruleset = self.rulecosi.simplified_ruleset_
+
+    def predict_proba(self, X):
+        return softmax(self.ruleset.predict_proba(X.values), axis=1)
+    
+    def predict(self, X):
+        return self.rulecosi.predict(X.values)
 
 
 class XGBoostClassifier(BaseClassifier):
@@ -116,5 +164,7 @@ def get_classifier(
 
     if name == "xgboost":
         return XGBoostClassifier(input_dim, output_dim, model_config, init_y, onehoter, verbose)
+    elif name == "rulecosi":
+        return RuleCOSIClassifier(input_dim, output_dim, model_config, init_y, onehoter, verbose, pre_study, pre_model)
     else:
         raise KeyError(f"{name} is not defined.")
