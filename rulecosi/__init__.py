@@ -1,2 +1,1 @@
-from .TreesExtraction import XGBTreeExtraction
-from .pruning import SCPruning
+from .RuleCOSI import RuleCOSIClassifier
