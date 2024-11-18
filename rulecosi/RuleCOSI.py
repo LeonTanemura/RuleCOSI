@@ -412,8 +412,7 @@ class RuleCOSIClassifier(ClassifierMixin, BaseRuleCOSI):
         self.processed_rulesets_, \
         self._global_condition_map = self._rule_extractor.rule_extraction()
 
-        self.simplified_ruleset_ = self.processed_rulesets_
-        self.simplified_ruleset_ = _simplify_rulesets(self.simplified_ruleset_, self._global_condition_map)
+        self.simplified_ruleset_ = _simplify_rulesets(self.processed_rulesets_, self._global_condition_map)
 
     def _more_tags(self):
         return {'binary_only': True}
