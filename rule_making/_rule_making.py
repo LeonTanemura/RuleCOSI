@@ -104,6 +104,8 @@ class RuleExtraction():
         for ruleset in processed_rulesets:
             self._rule_heuristics.compute_rule_heuristics(
                 ruleset, recompute=True)
+            
+        return processed_rulesets, self._global_condition_map
 
     def _initialize_sets(self):
         """ Initialize the sets that are going to be used during the
@@ -114,5 +116,3 @@ class RuleExtraction():
         self._bad_combinations = set()
         self._good_combinations = dict()
         self._rule_heuristics.initialize_sets()
-
-
