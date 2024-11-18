@@ -18,6 +18,8 @@ from sklearn.ensemble import GradientBoostingRegressor
 
 from rule_making import RuleExtraction
 
+from ._simplify_rulesets import _simplify_rulesets
+
 
 def _ensemble_type(ensemble):
     """ Return the ensemble type
@@ -407,7 +409,11 @@ class RuleCOSIClassifier(ClassifierMixin, BaseRuleCOSI):
                                               classes_=self.classes_,
                                               X_=self.X_,
                                               y_=self.y_)
-        self._rule_extractor.rule_extraction()
+        self.processed_rulesets_, \
+        self._global_condition_map = self._rule_extractor.rule_extraction()
+
+        self.simplified_ruleset_ = self.processed_rulesets_
+        self.simplified_ruleset_ = _simplify_rulesets(self.simplified_ruleset_, self._global_condition_map)
 
     def _more_tags(self):
         return {'binary_only': True}
