@@ -17,8 +17,8 @@ from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.ensemble import GradientBoostingRegressor
 
 from rule_making import RuleExtraction
-
 from ._simplify_rulesets import _simplify_rulesets
+from .combine import Combine
 
 
 def _ensemble_type(ensemble):
@@ -320,7 +320,7 @@ class RuleCOSIClassifier(ClassifierMixin, BaseRuleCOSI):
         self.X_ = None
         self.y_ = None
         self.classes_ = None
-        self.original_rulesets_ = None
+        self.processed_rulesets_ = None
         self.simplified_ruleset_ = None
         self.combination_time_ = None
         self.n_combinations_ = None
@@ -410,9 +410,16 @@ class RuleCOSIClassifier(ClassifierMixin, BaseRuleCOSI):
                                               X_=self.X_,
                                               y_=self.y_)
         self.processed_rulesets_, \
-        self._global_condition_map = self._rule_extractor.rule_extraction()
+        self._global_condition_map, \
+        self._rule_heuristics = self._rule_extractor.rule_extraction()
 
         self.simplified_ruleset_ = _simplify_rulesets(self.processed_rulesets_, self._global_condition_map)
+        self.combiner = Combine(X_=self.X_,
+                                y_=self.y_, 
+                                classes_=self.classes_,
+                                )
+        self.combined_rulesets = self.combiner.combine_rulesets(self.simplified_ruleset_, self._global_condition_map, self._rule_heuristics)
+        
 
     def _more_tags(self):
         return {'binary_only': True}

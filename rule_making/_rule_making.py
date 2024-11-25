@@ -105,7 +105,7 @@ class RuleExtraction():
             self._rule_heuristics.compute_rule_heuristics(
                 ruleset, recompute=True)
             
-        return processed_rulesets, self._global_condition_map
+        return processed_rulesets, self._global_condition_map, self._rule_heuristics 
 
     def _initialize_sets(self):
         """ Initialize the sets that are going to be used during the
