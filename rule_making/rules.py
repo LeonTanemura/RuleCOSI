@@ -17,16 +17,11 @@ from functools import reduce
 from sklearn.metrics import f1_score, accuracy_score, roc_auc_score
 from sklearn.utils import check_array
 
-op_dict = {'eq': '=',
-           'gt': '>',
-           'lt': '<',
-           'ge': '≥',
-           'le': '≤',
-           'ne': '!='}
+op_dict = {"eq": "=", "gt": ">", "lt": "<", "ge": "≥", "le": "≤", "ne": "!="}
 
 
 class RuleSet:
-    """ A set of ordered rules that can be used to make predictions.
+    """A set of ordered rules that can be used to make predictions.
 
     Parameters
     ----------
@@ -43,8 +38,7 @@ class RuleSet:
 
     """
 
-    def __init__(self, rules=None, condition_map=None, ruleset=None,
-                 classes=None):
+    def __init__(self, rules=None, condition_map=None, ruleset=None, classes=None):
         if condition_map is None:
             condition_map = {}
         if rules is None:
@@ -78,43 +72,42 @@ class RuleSet:
         else:
             self.class_type = self.classes[0].dtype
 
-
     def prune_condition_map(self):
         """Prune the condition map in this ruleset to contain only the
         conditions present in the rules
 
         """
-        condition_set = {cond[0]
-                         for rule in self.rules
-                         for cond in rule.A}
-        self.condition_map = {key: self.condition_map[key] for key in
-                              condition_set}
+        condition_set = {cond[0] for rule in self.rules for cond in rule.A}
+        self.condition_map = {key: self.condition_map[key] for key in condition_set}
 
     def ordered_condition_map(self):
         if self.condition_map is not None:
-            return {k: v for k, v
-                    in sorted(self.condition_map.items(),
-                              key=lambda item: str(item[1]))}
+            return {
+                k: v
+                for k, v in sorted(
+                    self.condition_map.items(), key=lambda item: str(item[1])
+                )
+            }
 
     def ordered_by_rule_condition_map(self):
         ordered_cond_map = dict()
         if self.condition_map is not None:
             for rule in self.rules:
-                ordered_cond_map.update({k: v for k, v
-                                         in sorted(rule.A,
-                                                   key=lambda item: str(
-                                                       item[1]))})
+                ordered_cond_map.update(
+                    {k: v for k, v in sorted(rule.A, key=lambda item: str(item[1]))}
+                )
         return ordered_cond_map
 
     def __str__(self):
-        return_str = ''
+        return_str = ""
         i = 1
         for rule in self.rules:
-            rule_string = 'r_{}: '.format(i)
-            rule_string = rule_string + ' ˄ '.join(
-                map(lambda cond: str(cond[1]), rule.A))
-            rule_string += ' → ' + str(rule.y)
-            rule_string += '\n'
+            rule_string = "r_{}: ".format(i)
+            rule_string = rule_string + " ˄ ".join(
+                map(lambda cond: str(cond[1]), rule.A)
+            )
+            rule_string += " → " + str(rule.y)
+            rule_string += "\n"
             return_str += rule_string
             i += 1
         return return_str
@@ -140,8 +133,8 @@ class RuleSet:
             n_total_ant += len(rule.A)
         return len(self.rules), n_uniq_ant, n_total_ant
 
-    def compute_class_perf(self, X, y_true, metric='f1'):
-        """ Compute the classification performance measures of this RuleSet
+    def compute_class_perf(self, X, y_true, metric="f1"):
+        """Compute the classification performance measures of this RuleSet
 
         :param  X : array-like, shape (n_samples, n_features)
             The input samples.
@@ -157,22 +150,21 @@ class RuleSet:
          from skelarn
 
         """
-        if metric == 'roc_auc':
+        if metric == "roc_auc":
             y_score = self.predict_proba(X)
             self.roc_auc = roc_auc_score(y_true, y_score[:, 1])
         else:
             y_pred = self.predict(X)
 
-            if metric == 'f1':
-                self.f1_score = f1_score(y_true, y_pred, average='macro')
-            elif metric == 'accuracy':
+            if metric == "f1":
+                self.f1_score = f1_score(y_true, y_pred, average="macro")
+            elif metric == "accuracy":
                 self.accuracy_score = accuracy_score(y_true, y_pred)
             else:
-                self.f1_score = f1_score(y_true, y_pred, average='macro')
+                self.f1_score = f1_score(y_true, y_pred, average="macro")
 
-    def compute_class_perf_fast(self, y_pred, y_true,
-                                metric='f1'):
-        """ Compute the classification performance measures of this RuleSet
+    def compute_class_perf_fast(self, y_pred, y_true, metric="f1"):
+        """Compute the classification performance measures of this RuleSet
             faster, by having the predictions already computed
 
         :param y_pred: array_like, shape (n_samples
@@ -190,15 +182,15 @@ class RuleSet:
 
         """
 
-        if metric == 'f1':
-            self.f1_score = f1_score(y_true, y_pred, average='macro')
-        elif metric == 'accuracy':
+        if metric == "f1":
+            self.f1_score = f1_score(y_true, y_pred, average="macro")
+        elif metric == "accuracy":
             self.accuracy_score = accuracy_score(y_true, y_pred)
         else:
-            self.f1_score = f1_score(y_true, y_pred, average='macro')
+            self.f1_score = f1_score(y_true, y_pred, average="macro")
 
-    def metric(self, metric='f1'):
-        """ Return the metric value of this RuleSet
+    def metric(self, metric="f1"):
+        """Return the metric value of this RuleSet
 
         :param metric: string, default='f1'
             Other accepted measures are:
@@ -207,17 +199,17 @@ class RuleSet:
              - 'accuracy' for Accuracy
 
         """
-        if metric == 'f1':
+        if metric == "f1":
             return self.f1_score
-        elif metric == 'roc_auc':
+        elif metric == "roc_auc":
             return self.roc_auc
-        elif metric == 'accuracy':
+        elif metric == "accuracy":
             return self.accuracy_score
         else:
             return self.f1_score
 
     def compute_all_classification_performance(self, X, y_true):
-        """ Compute all the classification performance measures of this RuleSet
+        """Compute all the classification performance measures of this RuleSet
 
         :param  X : array-like, shape (n_samples, n_features)
             The input samples.
@@ -228,12 +220,12 @@ class RuleSet:
         X = check_array(X)
         y_pred = self.predict(X)
         y_score = self.predict_proba(X)
-        self.f1_score = f1_score(y_true, y_pred, average='macro')
+        self.f1_score = f1_score(y_true, y_pred, average="macro")
         self.accuracy_score = accuracy_score(y_true, y_pred)
         self.roc_auc = roc_auc_score(y_true, y_score[:, 1])
 
     def predict(self, X):
-        """ Make predictions for the input values in X.
+        """Make predictions for the input values in X.
 
         :param X: X : array-like, shape (n_samples, n_features)
             The input samples.
@@ -243,19 +235,19 @@ class RuleSet:
         return np.ravel(self._predict(X)[0])
 
     def predict_proba(self, X):
-        """ Make probability predictions for the input values in X.
+        """Make probability predictions for the input values in X.
 
-         :param X: X : array-like, shape (n_samples, n_features)
-             The input samples.
+        :param X: X : array-like, shape (n_samples, n_features)
+            The input samples.
 
-         :return:  ndarray of shape (n_samples, n_classes)
-            The class probabilities of the input samples.
+        :return:  ndarray of shape (n_samples, n_classes)
+           The class probabilities of the input samples.
 
-         """
+        """
         return self._predict(X, proba=True)[0]
 
     def _predict(self, X, proba=False):
-        """ Make predictions for the input values in X.
+        """Make predictions for the input values in X.
 
         :param X: X : array-like, shape (n_samples, n_features)
             The input samples.
@@ -274,14 +266,13 @@ class RuleSet:
 
         """
         if proba:
-            prediction = np.zeros(
-                (X.shape[0], self.classes.shape[0]))
+            prediction = np.zeros((X.shape[0], self.classes.shape[0]))
         else:
-            prediction = np.zeros((X.shape[0], self.y_shape),
-                                  dtype=self.class_type)
+            prediction = np.zeros((X.shape[0], self.y_shape), dtype=self.class_type)
 
-        covered_mask = np.zeros((X.shape[0],),
-                                dtype=bool)  # records the records that are
+        covered_mask = np.zeros(
+            (X.shape[0],), dtype=bool
+        )  # records the records that are
         # already covered by some rule
         for i, rule in enumerate(self.rules):
             r_pred, r_mask = rule.predict(X, proba=proba)
@@ -296,9 +287,8 @@ class RuleSet:
 
         return prediction, covered_mask
 
-    def print_rules(self, return_object=None, heuristics_digits=4,
-                    condition_digits=3):
-        """ Print the rules in a string format. It can also return an object
+    def print_rules(self, return_object=None, heuristics_digits=4, condition_digits=3):
+        """Print the rules in a string format. It can also return an object
         containing the rules and its heuristics
 
         :param return_object: string, default=None
@@ -318,66 +308,84 @@ class RuleSet:
         :return: str or :class:`pandas.DataFrame`
         """
 
-        return_str = 'cov \tconf \tsupp \tsamples \t\trule\n'
-        columns = ['cov', 'conf', 'supp', 'samples', '#', 'A', 'y']
+        return_str = "cov \tconf \tsupp \tsamples \t\trule\n"
+        columns = ["cov", "conf", "supp", "samples", "#", "A", "y"]
         rule_rows = []
         i = 1
         for rule in self:
-            samples = ','.join(rule.n_samples.astype(str))
-            samples = f'[{samples}]'
+            samples = ",".join(rule.n_samples.astype(str))
+            samples = f"[{samples}]"
             if len(samples) > 7:
-                sample_tab = '\t'
+                sample_tab = "\t"
             else:
-                sample_tab = '\t\t'
-            rule_string = f'{rule.cov:.{heuristics_digits}f}\t' \
-                          f'{rule.conf:.{heuristics_digits}f}\t' \
-                          f'{rule.supp:.{heuristics_digits}f}\t' \
-                          f'{samples}{sample_tab}r_{i}: '
-            rule_row = [f'{rule.cov:.{heuristics_digits}f}',
-                        f'{rule.conf:.{heuristics_digits}f}',
-                        f'{rule.supp:.{heuristics_digits}f}', samples, f'r_{i}']
+                sample_tab = "\t\t"
+            rule_string = (
+                f"{rule.cov:.{heuristics_digits}f}\t"
+                f"{rule.conf:.{heuristics_digits}f}\t"
+                f"{rule.supp:.{heuristics_digits}f}\t"
+                f"{samples}{sample_tab}r_{i}: "
+            )
+            rule_row = [
+                f"{rule.cov:.{heuristics_digits}f}",
+                f"{rule.conf:.{heuristics_digits}f}",
+                f"{rule.supp:.{heuristics_digits}f}",
+                samples,
+                f"r_{i}",
+            ]
             if len(rule.A) == 0:
-                rule_string = rule_string + '( )'
-                rule_row.append('()')
+                rule_string = rule_string + "( )"
+                rule_row.append("()")
             else:
-                A_string = ' ˄ '.join(sorted([cond[1].__str__(
-                    digits=condition_digits) for cond in rule.A]))
+                A_string = " ˄ ".join(
+                    sorted(
+                        [cond[1].__str__(digits=condition_digits) for cond in rule.A]
+                    )
+                )
                 rule_string = rule_string + A_string
                 rule_row.append(A_string)
-            rule_string += ' → ' + str(rule.y)
+            rule_string += " → " + str(rule.y)
             rule_row.append(rule.y)
-            rule_string += '\n'
+            rule_string += "\n"
             return_str += rule_string
             i += 1
             rule_rows.append(rule_row)
         if return_object is not None:
-            if return_object == 'string':
+            if return_object == "string":
                 return return_str
-            elif return_object == 'dataframe':
+            elif return_object == "dataframe":
                 return pd.DataFrame(data=rule_rows, columns=columns)
         else:
             print(return_str)
 
 
 class Rule:
-    """ Represents a single rule which has the form r: A -> y.
+    """Represents a single rule which has the form r: A -> y.
 
-        A is a set of conditions also called body of the rule.
-        y is the predicted class, also called head of the rule.
+    A is a set of conditions also called body of the rule.
+    y is the predicted class, also called head of the rule.
     """
 
-    def __init__(self, conditions, class_dist=None, ens_class_dist=None,
-                 local_class_dist=None, logit_score=None,
-                 y=None, y_class_index=None, n_samples=None,
-                 n_outputs=1, classes=None, weight=0):
+    def __init__(
+        self,
+        conditions,
+        class_dist=None,
+        ens_class_dist=None,
+        local_class_dist=None,
+        logit_score=None,
+        y=None,
+        y_class_index=None,
+        n_samples=None,
+        n_outputs=1,
+        classes=None,
+        weight=0,
+    ):
         if classes is None:
             self.classes = [0, 1]
         else:
             self.classes = list(classes)
         self.n_classes = len(classes)
         if class_dist is None:
-            class_dist = np.array(
-                [1.0 / self.n_classes for _ in self.classes])
+            class_dist = np.array([1.0 / self.n_classes for _ in self.classes])
         if n_samples is None:
             self.n_samples = np.array([0 for _ in self.classes])
         else:
@@ -398,11 +406,10 @@ class Rule:
         self.heuristics_dict = None
 
         if len(self.A) == 0:
-            string_repr = '( )'
+            string_repr = "( )"
         else:
-            string_repr = ' ˄ '.join(
-                sorted([cond[1].str for cond in self.A]))
-        string_repr += ' → ' + str(self.y)
+            string_repr = " ˄ ".join(sorted([cond[1].str for cond in self.A]))
+        string_repr += " → " + str(self.y)
         self.str = string_repr
 
     def __str__(self):
@@ -410,11 +417,10 @@ class Rule:
 
     def update_string_representation(self):
         if len(self.A) == 0:
-            string_repr = '( )'
+            string_repr = "( )"
         else:
-            string_repr = ' ˄ '.join(
-                sorted([cond[1].str for cond in self.A]))
-        string_repr += ' → ' + str(self.y)
+            string_repr = " ˄ ".join(sorted([cond[1].str for cond in self.A]))
+        string_repr += " → " + str(self.y)
         self.str = string_repr
 
     def __repr__(self):
@@ -434,7 +440,7 @@ class Rule:
         return hash((self.A, tuple(self.y)))
 
     def predict(self, X, proba=False):
-        """ Make predictions for the input values in X.
+        """Make predictions for the input values in X.
 
         :param X: X : array-like, shape (n_samples, n_features)
             The input samples.
@@ -455,20 +461,19 @@ class Rule:
         # apply the and operator to all "satisfies _array" functions of
         # the conditions of this rule
         if len(self.A) > 0:
-            mask = reduce(operator.and_,
-                          [cond[1].satisfies_array(X) for cond in
-                           self.A])
+            mask = reduce(
+                operator.and_, [cond[1].satisfies_array(X) for cond in self.A]
+            )
         if proba:
             prediction = np.zeros((X.shape[0], self.class_dist.shape[0]))
             prediction[mask] = self.class_dist
         else:
-            prediction = np.zeros((X.shape[0], self.y.shape[0]),
-                                  dtype=self.y.dtype)
+            prediction = np.zeros((X.shape[0], self.y.shape[0]), dtype=self.y.dtype)
             prediction[mask] = self.y
         return prediction, mask
 
     def get_condition(self, att_index):
-        """ Returns the condition belonging to the att_index
+        """Returns the condition belonging to the att_index
 
         :param att_index: int
             The attribute index that wants to be retrieved.
@@ -482,7 +487,7 @@ class Rule:
         return None
 
     def add_condition(self, condition):
-        """ Add a condition to the rule
+        """Add a condition to the rule
 
         :param condition: Condition to be added
 
@@ -493,16 +498,16 @@ class Rule:
     def set_heuristics(self, heuristics_dict, update_dict=True):
         if update_dict:
             self.heuristics_dict = heuristics_dict
-        self.conf = heuristics_dict['conf'][self.class_index]
-        self.supp = heuristics_dict['supp'][self.class_index]
-        self.cov = heuristics_dict['cov']
+        self.conf = heuristics_dict["conf"][self.class_index]
+        self.supp = heuristics_dict["supp"][self.class_index]
+        self.cov = heuristics_dict["cov"]
 
         if self.cov > 0:
-            self.n_samples = np.array(heuristics_dict['class_cov_count'])
+            self.n_samples = np.array(heuristics_dict["class_cov_count"])
 
 
 class Condition:
-    """ Class representing a Rule Condition.
+    """Class representing a Rule Condition.
 
     A condition is an evaluation of an operator with a value. The operator
     could be any of the ones contained in op_dict = {'eq': '=', 'gt': '>',
@@ -513,17 +518,19 @@ class Condition:
     def __init__(self, att_index, op, value, att_name=None):
         self.att_index = int(att_index)
         if att_name is None:
-            self.att_name = 'att_' + str(att_index)
+            self.att_name = "att_" + str(att_index)
         else:
             self.att_name = att_name
         self.op = op
         self.value = float(value)
-        self.str = f'({self.att_name} {op_dict[self.op.__name__]} ' \
-                   f'{self.value:.{3}f})'
+        self.str = (
+            f"({self.att_name} {op_dict[self.op.__name__]} " f"{self.value:.{3}f})"
+        )
 
     def __str__(self, digits=3):
-        return f'({self.att_name} {op_dict[self.op.__name__]} ' \
-               f'{self.value:.{digits}f})'
+        return (
+            f"({self.att_name} {op_dict[self.op.__name__]} " f"{self.value:.{digits}f})"
+        )
 
     def __repr__(self):
         return self.str
@@ -559,7 +566,7 @@ class Condition:
         return hash((self.att_index, self.op, self.value))
 
     def satisfies(self, value):
-        """ Evaluates if the condition is satisfied or not using the provided
+        """Evaluates if the condition is satisfied or not using the provided
         value.
 
         :param value: int
@@ -571,7 +578,7 @@ class Condition:
         return self.op(value, self.value)
 
     def satisfies_array(self, arr):
-        """ Evaluates if the condition is satisfied or not for all the
+        """Evaluates if the condition is satisfied or not for all the
         records in the provided array.
 
         It applies the operator to the values in arr of the column equal to

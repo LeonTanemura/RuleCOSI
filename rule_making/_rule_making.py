@@ -32,33 +32,34 @@ from .rule_extraction import RuleExtractorFactory
 from .rule_heuristics import RuleHeuristics
 
 
-class RuleExtraction():
+class RuleExtraction:
 
-    def __init__(self,
-                 base_ensemble_=None,
-                 column_names=None,
-                 classes_=None,
-                 X_=None,
-                 y_=None,
-                 cov_threshold=0.0,
-                 conf_threshold=0.5,
-                 float_threshold=1e-6,
-                 verbose=0
-                 ):
+    def __init__(
+        self,
+        base_ensemble_=None,
+        column_names=None,
+        classes_=None,
+        X_=None,
+        y_=None,
+        cov_threshold=0.0,
+        conf_threshold=0.5,
+        float_threshold=1e-6,
+        verbose=0,
+    ):
 
-        self.base_ensemble_=base_ensemble_
-        self.column_names=column_names
-        self.classes_=classes_
-        self.X_=X_
-        self.y_=y_
+        self.base_ensemble_ = base_ensemble_
+        self.column_names = column_names
+        self.classes_ = classes_
+        self.X_ = X_
+        self.y_ = y_
         self.cov_threshold = cov_threshold
         self.conf_threshold = conf_threshold
-        self.float_threshold=float_threshold
-        self.verbose=verbose
-    
+        self.float_threshold = float_threshold
+        self.verbose = verbose
+
     def rule_extraction(self):
-        self._bad_combinations=None
-        self._good_combinations=None
+        self._bad_combinations = None
+        self._good_combinations = None
         self._rule_extractor = None
         self._rule_heuristics = None
         self._global_condition_map = None
@@ -66,14 +67,21 @@ class RuleExtraction():
 
         # First step is extract the rules
         self._rule_extractor = RuleExtractorFactory.get_rule_extractor(
-            self.base_ensemble_, self.column_names,
-            self.classes_, self.X_, self.y_, self.float_threshold)
+            self.base_ensemble_,
+            self.column_names,
+            self.classes_,
+            self.X_,
+            self.y_,
+            self.float_threshold,
+        )
         if self.verbose > 0:
             print(
-                f'Extracting rules from {type(self.base_ensemble_).__name__} '
-                f'base ensemble...')
-        self.original_rulesets_, \
-        self._global_condition_map = self._rule_extractor.extract_rules()
+                f"Extracting rules from {type(self.base_ensemble_).__name__} "
+                f"base ensemble..."
+            )
+        self.original_rulesets_, self._global_condition_map = (
+            self._rule_extractor.extract_rules()
+        )
         processed_rulesets = copy.deepcopy(self.original_rulesets_)
 
         # ルールの可視化
@@ -81,34 +89,36 @@ class RuleExtraction():
 
         # We create the heuristics object which will compute all the
         # heuristics related measures
-        self._rule_heuristics = RuleHeuristics(X=self.X_, y=self.y_,
-                                               classes_=self.classes_,
-                                               condition_map=
-                                               self._global_condition_map,
-                                               cov_threshold=self.cov_threshold,
-                                               conf_threshold=
-                                               self.conf_threshold)
+        self._rule_heuristics = RuleHeuristics(
+            X=self.X_,
+            y=self.y_,
+            classes_=self.classes_,
+            condition_map=self._global_condition_map,
+            cov_threshold=self.cov_threshold,
+            conf_threshold=self.conf_threshold,
+        )
         if self.verbose > 0:
-            print(f'Initializing sets and computing condition map...')
+            print(f"Initializing sets and computing condition map...")
         self._initialize_sets()
 
-        if str(
-                self.base_ensemble_.__class__) == \
-                "<class 'catboost.core.CatBoostClassifier'>":
+        if (
+            str(self.base_ensemble_.__class__)
+            == "<class 'catboost.core.CatBoostClassifier'>"
+        ):
             for ruleset in processed_rulesets:
                 for rule in ruleset:
-                    new_A = self._remove_opposite_conditions(set(rule.A),
-                                                             rule.class_index)
+                    new_A = self._remove_opposite_conditions(
+                        set(rule.A), rule.class_index
+                    )
                     rule.A = new_A
 
         for ruleset in processed_rulesets:
-            self._rule_heuristics.compute_rule_heuristics(
-                ruleset, recompute=True)
-            
-        return processed_rulesets, self._global_condition_map, self._rule_heuristics 
+            self._rule_heuristics.compute_rule_heuristics(ruleset, recompute=True)
+
+        return processed_rulesets, self._global_condition_map, self._rule_heuristics
 
     def _initialize_sets(self):
-        """ Initialize the sets that are going to be used during the
+        """Initialize the sets that are going to be used during the
         combination and simplification process This includes the set of good
         combinations G and bad combinations B. It also includes the bitsets
         for the training data as well as the bitsets for each of the conditions

@@ -33,16 +33,25 @@ class TabularDataFrame(object):
         self.categorical_encoder = categorical_encoder
         self.continuous_encoder = continuous_encoder
         self.test_size = test_size
-    
+
     def _init_checker(self):
-        variables = ["continuous_columns", "categorical_columns", "target_column", "data"]
+        variables = [
+            "continuous_columns",
+            "categorical_columns",
+            "target_column",
+            "data",
+        ]
         for variable in variables:
             if not hasattr(self, variable):
                 if variable == "data":
                     if not (hasattr(self, "train") and hasattr(self, "test")):
-                        raise ValueError("TabularDataFrame does not define `data`, but neither does `train`, `test`.")
+                        raise ValueError(
+                            "TabularDataFrame does not define `data`, but neither does `train`, `test`."
+                        )
                 else:
-                    raise ValueError(f"TabularDataFrame does not define a attribute: `{variable}`")
+                    raise ValueError(
+                        f"TabularDataFrame does not define a attribute: `{variable}`"
+                    )
 
     def show_data_details(self, train: pd.DataFrame, test: pd.DataFrame):
         all_data = pd.concat([train, test])
@@ -66,7 +75,9 @@ class TabularDataFrame(object):
         if hasattr(self, "train") and hasattr(self, "test"):
             train = self.train
             test = self.test
-            all_target = label_encode(pd.concat([train[self.target_column], test[self.target_column]]))
+            all_target = label_encode(
+                pd.concat([train[self.target_column], test[self.target_column]])
+            )
             train[self.target_column] = all_target[: len(train)]
             test[self.target_column] = all_target[len(train) :]
             self.data = pd.concat([train, test])
@@ -85,12 +96,14 @@ class TabularDataFrame(object):
             "test": test,
         }
         return classify_dfs
-    
+
     def fit_feature_encoder(self, df_train):
         # Categorical values are fitted on all data.
         if self.categorical_columns != []:
             if self.categorical_encoder == "ordinal":
-                self._categorical_encoder = OrdinalEncoder(dtype=np.int32).fit(self.data[self.categorical_columns])
+                self._categorical_encoder = OrdinalEncoder(dtype=np.int32).fit(
+                    self.data[self.categorical_columns]
+                )
             elif self.categorical_encoder == "onehot":
                 self._categorical_encoder = OneHotEncoder(
                     sparse_output=False,
@@ -110,7 +123,9 @@ class TabularDataFrame(object):
 
     def apply_onehot_encoding(self, df: pd.DataFrame):
         encoded = self._categorical_encoder.transform(df[self.categorical_columns])
-        encoded_columns = self._categorical_encoder.get_feature_names_out(self.categorical_columns)
+        encoded_columns = self._categorical_encoder.get_feature_names_out(
+            self.categorical_columns
+        )
         encoded_df = pd.DataFrame(encoded, columns=encoded_columns, index=df.index)
         df = df.drop(self.categorical_columns, axis=1)
         return pd.concat([df, encoded_df], axis=1)
@@ -119,21 +134,31 @@ class TabularDataFrame(object):
         for key in dfs.keys():
             if self.categorical_columns != []:
                 if isinstance(self._categorical_encoder, OrdinalEncoder):
-                    dfs[key][self.categorical_columns] = self._categorical_encoder.transform(
-                        dfs[key][self.categorical_columns]
+                    dfs[key][self.categorical_columns] = (
+                        self._categorical_encoder.transform(
+                            dfs[key][self.categorical_columns]
+                        )
                     )
                 else:
                     dfs[key] = self.apply_onehot_encoding(dfs[key])
             if self.continuous_columns != []:
                 if self.continuous_encoder is not None:
-                    dfs[key][self.continuous_columns] = self._continuous_encoder.transform(
-                        dfs[key][self.continuous_columns]
+                    dfs[key][self.continuous_columns] = (
+                        self._continuous_encoder.transform(
+                            dfs[key][self.continuous_columns]
+                        )
                     )
                 else:
-                    dfs[key][self.continuous_columns] = dfs[key][self.continuous_columns].astype(np.float64)
+                    dfs[key][self.continuous_columns] = dfs[key][
+                        self.continuous_columns
+                    ].astype(np.float64)
         if self.categorical_columns != []:
             if isinstance(self._categorical_encoder, OneHotEncoder):
-                self.categorical_columns = self._categorical_encoder.get_feature_names_out(self.categorical_columns)
+                self.categorical_columns = (
+                    self._categorical_encoder.get_feature_names_out(
+                        self.categorical_columns
+                    )
+                )
         return dfs
 
     def processed_dataframes(self) -> Dict[str, pd.DataFrame]:
@@ -142,5 +167,7 @@ class TabularDataFrame(object):
         # preprocessing
         self.fit_feature_encoder(dfs["train"])
         dfs = self.apply_feature_encoding(dfs)
-        self.all_columns = list(self.categorical_columns) + list(self.continuous_columns)
+        self.all_columns = list(self.categorical_columns) + list(
+            self.continuous_columns
+        )
         return dfs

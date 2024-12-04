@@ -1,41 +1,89 @@
+import numpy as np
+from rule_making import RuleSet
+
+
 class SCPruning:
 
-    def __init__(self, ruleset, alpha, df) -> None:
-        self.ruleset = ruleset # list
-        self.alpha = alpha # float
-        self.df = df # pandas.core.frame.DataFrame
+    def __init__(
+        self,
+        cov_threshold=0.0,
+        conf_threshold=0.5,
+        X_=None,
+        y_=None,
+        classes_=None,
+        global_condition_map=None,
+        rule_heuristics=None,
+    ):
+        self.X_ = X_
+        self.y_ = y_
+        self.classes_ = classes_
+        self.cov_threshold = cov_threshold
+        self.conf_threshold = conf_threshold
+        self.global_condition_map = global_condition_map
+        self.rule_heuristics = rule_heuristics
 
-    def pruning(self):
-        pruned_ruleset = []
-        df_copy = self.df.copy()
-        found_rule = True
+        self.remaining_data = X_.copy() if X_ is not None else None
+        self.remaining_labels = y_.copy() if y_ is not None else None
+        self.not_cov_mask = self.rule_heuristics.ones if self.rule_heuristics else None
 
-        while (len(self.ruleset) > 0 and not df_copy.empty and found_rule):
-            cov = [self.compute_coverage(rule, df_copy) for rule in self.ruleset]
-            conf = [self.compute_confidence(rule, df_copy) for rule in self.ruleset]
-            sorted_ruleset = self.sorted_rules(conf, cov)
+    def sequential_covering_pruning(self, unpruned_rulesets):
+
+        self.unpruned_rulesets = unpruned_rulesets
+        self.pruned_ruleset = set()
+
+        while len(self.unpruned_rulesets.rules) > 0 and len(self.remaining_data) > 0:
+            self.compute_heuristics()
+
+            self.unpruned_rulesets.rules.sort(
+                key=lambda rule: (rule.conf, rule.cov, rule.supp), reverse=True
+            )
+
+            # ソート後のヒューリスティクスを表示
+            # for i, rule in enumerate(self.unpruned_rulesets.rules[:5]):
+            # print(f"順位: {i+1}")
+            # print(f"  カバレッジ (Coverage): {rule.cov}")
+            # print(f"  信頼度 (Confidence): {rule.conf}")
+            # print(f"  サポート率 (Support): {rule.supp}")
+            # print(f"  ルール条件セット (Rule Conditions): {rule}")
+            # print("-" * 10)
+
             found_rule = False
+            for i, rule in enumerate(self.unpruned_rulesets.rules):
+                result, self.not_cov_mask = self.rule_heuristics.rule_is_accurate(
+                    rule, self.not_cov_mask
+                )
+                if result:
+                    # print(f"Index of pruned rules : {i}")
+                    self.pruned_ruleset.add(rule)
+                    # print(
+                    #     f"unpruned ruleset length: {len(self.unpruned_rulesets.rules)}"
+                    # )
+                    # print(f"dataset length: {len(self.remaining_data)}")
+                    self.unpruned_rulesets.rules.remove(rule)
+                    _, covered_mask = rule.predict(self.remaining_data)
+                    self.remaining_data = self.remaining_data[~covered_mask]
+                    self.remaining_labels = self.remaining_labels[~covered_mask]
+                    found_rule = True
+                    break
 
-            # for rule, conf, cov in sorted_ruleset:
-            #     if conf > self.alpha:
-            #         df_copy = self.delete_data(rule, df_copy)
-            #         self.ruleset.remove(rule)
-            #         pruned_ruleset.append(rule)
-            #         found_rule = True
-            #         break
-            break
-        print("completed")
-        return pruned_ruleset
-    
+            if not found_rule:
+                break
 
-    def compute_coverage(self, rule, df):
-        pass
+        self.pruned_ruleset = RuleSet(
+            rules=list(self.pruned_ruleset),
+            condition_map=self.global_condition_map,
+            classes=self.classes_,
+        )
 
-    def compute_confidence(self, rule, df):
-        pass
+        return self.pruned_ruleset
 
-    def sorted_rules(self, conf, cov):
-        pass
+    # ヒューリスティクスを再計算
+    def compute_heuristics(self):
+        if not self.rule_heuristics:
+            raise ValueError("Rule heuristics object not initialized.")
 
-    def delete_data(self, rule, df):
-        pass
+        self.rule_heuristics.compute_rule_heuristics(
+            ruleset=self.unpruned_rulesets,
+            not_cov_mask=self.not_cov_mask,
+            recompute=True,
+        )

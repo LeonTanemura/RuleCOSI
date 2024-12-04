@@ -29,7 +29,9 @@ class ExpBase:
         self.exp_config = config.exp
         self.data_config = config.data
 
-        dataframe: TabularDataFrame = getattr(dataset, self.data_config.name)(seed=config.seed, **self.data_config)
+        dataframe: TabularDataFrame = getattr(dataset, self.data_config.name)(
+            seed=config.seed, **self.data_config
+        )
         dfs = dataframe.processed_dataframes()
         self.train, self.test = dfs["train"], dfs["test"]
         self.columns = dataframe.all_columns
@@ -61,7 +63,9 @@ class ExpBase:
         uniq = self.get_unique(train_data)
         x, y = self.get_x_y(train_data)
 
-        model_config = self.get_model_config(i_fold=i_fold, x=x, y=y, val_data=val_data, uniq=uniq)
+        model_config = self.get_model_config(
+            i_fold=i_fold, x=x, y=y, val_data=val_data, uniq=uniq
+        )
         model = get_classifier(
             self.model_name,
             input_dim=len(self.columns),
@@ -76,7 +80,10 @@ class ExpBase:
         model.fit(
             x,
             y,
-            eval_set=(val_data[self.columns], val_data[self.target_column].values.squeeze()),
+            eval_set=(
+                val_data[self.columns],
+                val_data[self.target_column].values.squeeze(),
+            ),
         )
         end = time() - start
         logger.info(f"[Fit {self.model_name}] Time: {end}")
@@ -84,7 +91,9 @@ class ExpBase:
 
     def run(self):
         skf = StratifiedKFold(n_splits=self.n_splits)
-        for i_fold, (train_idx, val_idx) in enumerate(skf.split(self.train, self.train[self.target_column])):
+        for i_fold, (train_idx, val_idx) in enumerate(
+            skf.split(self.train, self.train[self.target_column])
+        ):
             if len(self.writer["fold"]) != 0 and self.writer["fold"][-1] >= i_fold:
                 logger.info(f"Skip {i_fold + 1} fold. Already finished.")
                 continue
@@ -93,16 +102,26 @@ class ExpBase:
             model, time = self.each_fold(i_fold, train_data, val_data)
 
             print("rule作成成功")
-            exit() # RuleCOSI+のアルゴリズムを作成しないと以下を実行できない。
+            exit()  # RuleCOSI+のアルゴリズムを作成しないと以下を実行できない。
 
             score = cal_metrics(model, val_data, self.columns, self.target_column)
-            score.update(model.evaluate(val_data[self.columns], val_data[self.target_column].values.squeeze()))
+            score.update(
+                model.evaluate(
+                    val_data[self.columns],
+                    val_data[self.target_column].values.squeeze(),
+                )
+            )
             logger.info(
                 f"[{self.model_name} results ({i_fold+1} / {self.n_splits})] val/ACC: {score['ACC']:.4f} | val/AUC: {score['AUC']:.4f} | "
             )
 
             score = cal_metrics(model, self.test, self.columns, self.target_column)
-            score.update(model.evaluate(self.test[self.columns], self.test[self.target_column].values.squeeze()))
+            score.update(
+                model.evaluate(
+                    self.test[self.columns],
+                    self.test[self.target_column].values.squeeze(),
+                )
+            )
 
             logger.info(
                 f"[{self.model_name} results ({i_fold+1} / {self.n_splits})] test/ACC: {score['ACC']:.4f} | test/AUC: {score['AUC']:.4f} | "
@@ -119,7 +138,6 @@ class ExpBase:
             mean_std_score[k] = f"{score.mean(): .4f} ±{score.std(ddof=1): .4f}"
             score_list_dict[k] = score_list
             logger.info(f"[{self.model_name} {k}]: {mean_std_score[k]}")
-        
 
     def get_model_config(self, *args, **kwargs):
         raise NotImplementedError()
@@ -139,4 +157,3 @@ class ExpSimple(ExpBase):
 
     def get_model_config(self, *args, **kwargs):
         return self.model_config
-        

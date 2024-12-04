@@ -22,7 +22,15 @@ import rulecosi
 
 class BaseClassifier:
     def __init__(
-        self, input_dim, output_dim, model_config, init_y, onehoter, verbose, pre_study=False, pre_model=None
+        self,
+        input_dim,
+        output_dim,
+        model_config,
+        init_y,
+        onehoter,
+        verbose,
+        pre_study=False,
+        pre_model=None,
     ) -> None:
         self.ruleset = None
         self.input_dim = input_dim
@@ -59,15 +67,22 @@ class BaseClassifier:
         else:
             y_score = self.predict_proba(X)
             results["AUC"] = roc_auc_score(y, y_score, multi_class="ovr")
-            results["Precision"] = precision_score(y, y_pred, average="macro", zero_division=0)
-            results["Recall"] = recall_score(y, y_pred, average="macro", zero_division=0)
-            results["Specificity"] = recall_score(1 - y, 1 - y_pred, average="macro", zero_division=0)
+            results["Precision"] = precision_score(
+                y, y_pred, average="macro", zero_division=0
+            )
+            results["Recall"] = recall_score(
+                y, y_pred, average="macro", zero_division=0
+            )
+            results["Specificity"] = recall_score(
+                1 - y, 1 - y_pred, average="macro", zero_division=0
+            )
             results["F1"] = f1_score(y, y_pred, average="macro", zero_division=0)
         return results
-    
+
     def get_booster(self):
         raise NotImplementedError()
-    
+
+
 class RuleCOSIClassifier(BaseClassifier):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -89,7 +104,7 @@ class RuleCOSIClassifier(BaseClassifier):
                 early_stopping_rounds=10,
             )
         self.rulecosi = rulecosi.RuleCOSIClassifier(
-            base_ensemble = self.ens,
+            base_ensemble=self.ens,
             metric="auc",
             **rulecosi_config,
             verbose=self.verbose,
@@ -98,7 +113,9 @@ class RuleCOSIClassifier(BaseClassifier):
     def pre_fit(self, X, y, eval_set):
         X_xgb, y_xgb = check_X_y(X, y)
         eval_set_xgb = check_X_y(*eval_set)
-        self.pre_model = self.ens.fit(X_xgb, y_xgb, eval_set=[eval_set_xgb], verbose=False)
+        self.pre_model = self.ens.fit(
+            X_xgb, y_xgb, eval_set=[eval_set_xgb], verbose=False
+        )
 
     def fit(self, X, y, eval_set):
         if self.pre_model is None:
@@ -110,7 +127,7 @@ class RuleCOSIClassifier(BaseClassifier):
 
     def predict_proba(self, X):
         return softmax(self.ruleset.predict_proba(X.values), axis=1)
-    
+
     def predict(self, X):
         return self.rulecosi.predict(X.values)
 
@@ -143,9 +160,10 @@ class XGBoostClassifier(BaseClassifier):
 
     def predict(self, X):
         return self.xgb.predict(X)
-    
+
     def get_booster(self):
         return self.xgb.get_booster()
+
 
 def get_classifier(
     name,
@@ -163,8 +181,19 @@ def get_classifier(
     set_seed(seed=seed)
 
     if name == "xgboost":
-        return XGBoostClassifier(input_dim, output_dim, model_config, init_y, onehoter, verbose)
+        return XGBoostClassifier(
+            input_dim, output_dim, model_config, init_y, onehoter, verbose
+        )
     elif name == "rulecosi":
-        return RuleCOSIClassifier(input_dim, output_dim, model_config, init_y, onehoter, verbose, pre_study, pre_model)
+        return RuleCOSIClassifier(
+            input_dim,
+            output_dim,
+            model_config,
+            init_y,
+            onehoter,
+            verbose,
+            pre_study,
+            pre_model,
+        )
     else:
         raise KeyError(f"{name} is not defined.")
