@@ -1,35 +1,47 @@
 import numpy as np
-from rule_making import Rule
+from rule_making import Rule, RuleSet
 from ._simplify_rulesets import _simplify_conditions
 
 
 class Combine:
 
-    def __init__(self, cov_threshold=0.0, conf_threshold=0.5, X_=None, y_=None, classes_=None): 
+    def __init__(
+        self,
+        cov_threshold=0.0,
+        conf_threshold=0.5,
+        X_=None,
+        y_=None,
+        classes_=None,
+        global_condition_map=None,
+        rule_heuristics=None,
+    ):
         self.X_ = X_
         self.y_ = y_
         self.classes_ = classes_
         self.cov_threshold = cov_threshold
         self.conf_threshold = conf_threshold
-
-    def combine_rulesets(self, simplified_ruleset_, global_condition_map, rule_heuristics):
-        self.simplified_ruleset_ = simplified_ruleset_
         self.global_condition_map = global_condition_map
         self.rule_heuristics = rule_heuristics
-        self.combined_rulesets = []
+
+    def combine_rulesets(self, simplified_ruleset_):
+        self.simplified_ruleset_ = simplified_ruleset_
+        self.combined_rulesets = set()
 
         # すべてのルールセットを結合
         for idx, ruleset in enumerate(self.simplified_ruleset_):
             rs1 = ruleset
-            for rs2 in self.simplified_ruleset_[idx+1:]:
+            for rs2 in self.simplified_ruleset_[idx + 1 :]:
                 combined_result = self.combine(rs1, rs2)
-                self.combined_rulesets.append(combined_result)
-                # self.combined_rulesets.extend(combined_result)  # リストに展開して追加
+                self.combined_rulesets.update(combined_result)
                 # print("combine len : ", len(self.combined_rulesets))
-        print(self.combined_rulesets)
-        
+        self.combined_rulesets = RuleSet(
+            rules=list(self.combined_rulesets),
+            condition_map=self.global_condition_map,
+            classes=self.classes_,
+        )
+
         return self.combined_rulesets
-        
+
     def combine(self, rs1, rs2):
         combined_ruleset = set()
         # print("rs1 : ", len(rs1.rules))
@@ -40,7 +52,9 @@ class Combine:
                 # print("r2 conditions: ", r2.A)
                 # 新しいルール条件を結合
                 new_rule_condition = set(r1.A).union(set(r2.A))
-                new_rule_condition = _simplify_conditions(new_rule_condition, self.global_condition_map)
+                new_rule_condition = _simplify_conditions(
+                    new_rule_condition, self.global_condition_map
+                )
                 # print("new_rule condition: ", new_rule_condition)
 
                 # 新しいクラス分布を計算
@@ -60,7 +74,10 @@ class Combine:
                 # print("Combined heuristics:", heuristics_dict)
                 # print(f"New rule class: {y}, Coverage: {heuristics_dict['cov']}, Confidence: {heuristics_dict['conf'][y_class_index]}")
 
-                if heuristics_dict['cov'] > self.cov_threshold and heuristics_dict['conf'][y_class_index] > self.conf_threshold:
+                if (
+                    heuristics_dict["cov"] > self.cov_threshold
+                    and heuristics_dict["conf"][y_class_index] > self.conf_threshold
+                ):
                     new_rule = Rule(
                         conditions=new_rule_condition,
                         class_dist=new_rule_class_dist,
@@ -69,11 +86,11 @@ class Combine:
                         logit_score=0,
                         y=y,
                         y_class_index=y_class_index,
-                        classes=self.classes_
+                        classes=self.classes_,
                     )
                     new_rule.set_heuristics(heuristics_dict)
                     combined_ruleset.add(new_rule)
 
-        # print("combined: ", len(combined_ruleset))
+        # print("combined ruleset length: ", len(combined_ruleset))
 
         return combined_ruleset
