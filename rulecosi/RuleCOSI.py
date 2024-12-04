@@ -19,42 +19,48 @@ from sklearn.ensemble import GradientBoostingRegressor
 from rule_making import RuleExtraction
 from ._simplify_rulesets import _simplify_rulesets
 from .combine import Combine
+from .pruning import SCPruning
 
 
 def _ensemble_type(ensemble):
-    """ Return the ensemble type
+    """Return the ensemble type
 
     :param ensemble:
     :return:
     """
     if isinstance(ensemble, GradientBoostingClassifier):
-        return 'gbt'
+        return "gbt"
     elif str(ensemble.__class__) == "<class 'xgboost.sklearn.XGBClassifier'>":
         try:
             from xgboost import XGBClassifier
         except ModuleNotFoundError:
-            raise ModuleNotFoundError('If you want to use '
-                                      'xgboost.sklearn.XGBClassifier '
-                                      'ensembles you should install xgboost '
-                                      'library.')
-        return 'gbt'
+            raise ModuleNotFoundError(
+                "If you want to use "
+                "xgboost.sklearn.XGBClassifier "
+                "ensembles you should install xgboost "
+                "library."
+            )
+        return "gbt"
     else:
         raise NotImplementedError
 
-class BaseRuleCOSI(BaseEstimator, metaclass=ABCMeta):
-    """ Abstract base class for RuleCOSI estimators."""
 
-    def __init__(self,
-                 base_ensemble=None,
-                 n_estimators=5,
-                 tree_max_depth=3,
-                 percent_training=None,
-                 early_stop=0,
-                 metric='f1',
-                 float_threshold=-1e-6,
-                 column_names=None,
-                 random_state=None,
-                 verbose=0):
+class BaseRuleCOSI(BaseEstimator, metaclass=ABCMeta):
+    """Abstract base class for RuleCOSI estimators."""
+
+    def __init__(
+        self,
+        base_ensemble=None,
+        n_estimators=5,
+        tree_max_depth=3,
+        percent_training=None,
+        early_stop=0,
+        metric="f1",
+        float_threshold=-1e-6,
+        column_names=None,
+        random_state=None,
+        verbose=0,
+    ):
         self.base_ensemble = base_ensemble
         self.n_estimators = n_estimators
         self.tree_max_depth = tree_max_depth
@@ -67,10 +73,10 @@ class BaseRuleCOSI(BaseEstimator, metaclass=ABCMeta):
         self.verbose = verbose
 
     def _more_tags(self):
-        return {'binary_only': True}
+        return {"binary_only": True}
 
     def fit(self, X, y):
-        """ Combine and simplify the decision trees from the base ensemble
+        """Combine and simplify the decision trees from the base ensemble
         and builds a rule-based classifier using the training set (X,y)
 
         Parameters
@@ -91,15 +97,16 @@ class BaseRuleCOSI(BaseEstimator, metaclass=ABCMeta):
 
     @abstractmethod
     def _validate_and_create_base_ensemble(self):
-        """ Validate the parameter of base ensemble and if it is None,
+        """Validate the parameter of base ensemble and if it is None,
         it set the default ensemble GradientBoostingClassifier.
 
         """
 
         pass
 
+
 class RuleCOSIClassifier(ClassifierMixin, BaseRuleCOSI):
-    """ Tree ensemble Rule COmbiantion and SImplification algorithm for
+    """Tree ensemble Rule COmbiantion and SImplification algorithm for
     classification
 
     RuleCOSI extract, combines and simplify rules from a variety of tree
@@ -254,34 +261,36 @@ class RuleCOSIClassifier(ClassifierMixin, BaseRuleCOSI):
 
     """
 
-    def __init__(self,
-                 base_ensemble=None,
-                 n_estimators=5,
-                 tree_max_depth=3,
-                 cov_threshold=0.0,
-                 conf_threshold=0.5,
-                 c=0.25,
-                 percent_training=None,
-                 early_stop=0,
-                 metric='f1',
-                 rule_order='supp',
-                 sort_by_class=None,
-                 float_threshold=1e-6,
-                 column_names=None,
-                 random_state=None,
-                 verbose=0
-                 ):
-        super().__init__(base_ensemble=base_ensemble,
-                         n_estimators=n_estimators,
-                         tree_max_depth=tree_max_depth,
-                         percent_training=percent_training,
-                         early_stop=early_stop,
-                         metric=metric,
-                         float_threshold=float_threshold,
-                         column_names=column_names,
-                         random_state=random_state,
-                         verbose=verbose
-                         )
+    def __init__(
+        self,
+        base_ensemble=None,
+        n_estimators=5,
+        tree_max_depth=3,
+        cov_threshold=0.0,
+        conf_threshold=0.5,
+        c=0.25,
+        percent_training=None,
+        early_stop=0,
+        metric="f1",
+        rule_order="supp",
+        sort_by_class=None,
+        float_threshold=1e-6,
+        column_names=None,
+        random_state=None,
+        verbose=0,
+    ):
+        super().__init__(
+            base_ensemble=base_ensemble,
+            n_estimators=n_estimators,
+            tree_max_depth=tree_max_depth,
+            percent_training=percent_training,
+            early_stop=early_stop,
+            metric=metric,
+            float_threshold=float_threshold,
+            column_names=column_names,
+            random_state=random_state,
+            verbose=verbose,
+        )
 
         self.cov_threshold = cov_threshold
         self.conf_threshold = conf_threshold
@@ -290,7 +299,7 @@ class RuleCOSIClassifier(ClassifierMixin, BaseRuleCOSI):
         self.sort_by_class = sort_by_class
 
     def fit(self, X, y):
-        """ Combine and simplify the decision trees from the base ensemble
+        """Combine and simplify the decision trees from the base ensemble
         and builds a rule-based classifier using the training set (X,y)
 
         Parameters
@@ -341,15 +350,19 @@ class RuleCOSIClassifier(ClassifierMixin, BaseRuleCOSI):
             self.X_ = X
             self.y_ = y
         else:
-            x, _, y, _ = train_test_split(X, y,
-                                          test_size=(1 - self.percent_training),
-                                          shuffle=True, stratify=y,
-                                          random_state=self.random_state)
+            x, _, y, _ = train_test_split(
+                X,
+                y,
+                test_size=(1 - self.percent_training),
+                shuffle=True,
+                stratify=y,
+                random_state=self.random_state,
+            )
             self.X_ = x
             self.y_ = y
 
         # add rule ordering funcionality (2023.03.30)
-        self._sorting_list = ['cov', 'conf', 'supp']
+        self._sorting_list = ["cov", "conf", "supp"]
         self._sorting_list.remove(self.rule_order)
         self._sorting_list.insert(0, self.rule_order)
         self._sorting_list.reverse()
@@ -360,72 +373,103 @@ class RuleCOSIClassifier(ClassifierMixin, BaseRuleCOSI):
         if self.n_estimators is None or self.n_estimators < 2:
             raise ValueError(
                 "Parameter n_estimators should be at "
-                "least 2 for using the RuleCOSI method.")
+                "least 2 for using the RuleCOSI method."
+            )
 
         if self.verbose > 0:
-            print('Validating original ensemble...')
+            print("Validating original ensemble...")
         try:
             if self.base_ensemble is None:
                 self.base_ensemble_ = GradientBoostingClassifier(
                     n_estimators=self.n_estimators,
                     max_depth=self.tree_max_depth,
-                    random_state=self.random_state)
+                    random_state=self.random_state,
+                )
             else:
                 self.base_ensemble_ = self.base_ensemble
             self._base_ens_type = _ensemble_type(self.base_ensemble_)
         except NotImplementedError:
             print(
-                f'Base ensemble of type {type(self.base_ensemble_).__name__} '
-                f'is not supported.')
+                f"Base ensemble of type {type(self.base_ensemble_).__name__} "
+                f"is not supported."
+            )
         try:
             check_is_fitted(self.base_ensemble_)
             self.ensemble_training_time_ = 0
             if self.verbose > 0:
                 print(
-                    f'{type(self.base_ensemble_).__name__} already trained, '
-                    f'ignoring n_estimators and '
-                    f'tree_max_depth parameters.')            
+                    f"{type(self.base_ensemble_).__name__} already trained, "
+                    f"ignoring n_estimators and "
+                    f"tree_max_depth parameters."
+                )
         except NotFittedError:
             self.base_ensemble_ = self._validate_and_create_base_ensemble()
             if self.verbose > 0:
                 print(
-                    f'Training {type(self.base_ensemble_).__name__} '
-                    f'base ensemble...')
+                    f"Training {type(self.base_ensemble_).__name__} "
+                    f"base ensemble..."
+                )
             start_time = time.time()
             self.base_ensemble_.fit(X, y)
             end_time = time.time()
             self.ensemble_training_time_ = end_time - start_time
             if self.verbose > 0:
                 print(
-                    f'Finish training {type(self.base_ensemble_).__name__} '
-                    f'base ensemble'
-                    f' in {self.ensemble_training_time_} seconds.')
+                    f"Finish training {type(self.base_ensemble_).__name__} "
+                    f"base ensemble"
+                    f" in {self.ensemble_training_time_} seconds."
+                )
 
         start_time = time.time()
 
-        print("base_ensemble: ", self.base_ensemble)
-        self._rule_extractor = RuleExtraction(base_ensemble_=self.base_ensemble_,
-                                              column_names=self.column_names,
-                                              classes_=self.classes_,
-                                              X_=self.X_,
-                                              y_=self.y_)
-        self.processed_rulesets_, \
-        self._global_condition_map, \
-        self._rule_heuristics = self._rule_extractor.rule_extraction()
+        self._rule_extractor = RuleExtraction(
+            base_ensemble_=self.base_ensemble_,
+            column_names=self.column_names,
+            classes_=self.classes_,
+            X_=self.X_,
+            y_=self.y_,
+        )
+        self.processed_rulesets_, self._global_condition_map, self._rule_heuristics = (
+            self._rule_extractor.rule_extraction()
+        )
 
-        self.simplified_ruleset_ = _simplify_rulesets(self.processed_rulesets_, self._global_condition_map)
-        self.combiner = Combine(X_=self.X_,
-                                y_=self.y_, 
-                                classes_=self.classes_,
-                                )
-        self.combined_rulesets = self.combiner.combine_rulesets(self.simplified_ruleset_, self._global_condition_map, self._rule_heuristics)
-        
+        self.simplified_ruleset_ = _simplify_rulesets(
+            self.processed_rulesets_, self._global_condition_map
+        )
+
+        print("-----combine start-----")
+        self.combiner = Combine(
+            X_=self.X_,
+            y_=self.y_,
+            classes_=self.classes_,
+            global_condition_map=self._global_condition_map,
+            rule_heuristics=self._rule_heuristics,
+        )
+        self.combined_rulesets_ = self.combiner.combine_rulesets(
+            self.simplified_ruleset_
+        )
+        print("-----combine completed-----")
+
+        print("-----pruning start-----")
+        self.pruner = SCPruning(
+            X_=self.X_,
+            y_=self.y_,
+            cov_threshold=self.cov_threshold,
+            conf_threshold=self.conf_threshold,
+            classes_=self.classes_,
+            global_condition_map=self._global_condition_map,
+            rule_heuristics=self._rule_heuristics,
+        )
+        self.pruned_rulesets_ = self.pruner.sequential_covering_pruning(
+            self.combined_rulesets_
+        )
+        print("-----pruning completed-----")
 
     def _more_tags(self):
-        return {'binary_only': True}
+        return {"binary_only": True}
 
     def predict(self, X):
-        """ Predict classes for X.
+        """Predict classes for X.
 
         The predicted class of an input sample. The prediction use the
         simplified ruleset and evaluate the rules one by one. When a rule
@@ -483,33 +527,37 @@ class RuleCOSIClassifier(ClassifierMixin, BaseRuleCOSI):
                 f" fitted with {self.X_.shape[1]}."
             )
         return self.simplified_ruleset_.predict_proba(X)
-    
+
     def _validate_and_create_base_ensemble(self):
-        """ Validate the parameter of base ensemble and if it is None,
+        """Validate the parameter of base ensemble and if it is None,
         it set the default ensemble GradientBoostingClassifier.
 
         """
 
         if self.n_estimators <= 0:
-            raise ValueError("n_estimators must be greater than zero, "
-                             "got {0}.".format(self.n_estimators))
+            raise ValueError(
+                "n_estimators must be greater than zero, "
+                "got {0}.".format(self.n_estimators)
+            )
         if self.base_ensemble is None:
             if is_classifier(self):
                 self.base_ensemble_ = GradientBoostingClassifier(
                     n_estimators=self.n_estimators,
                     max_depth=self.tree_max_depth,
-                    random_state=self.random_state)
+                    random_state=self.random_state,
+                )
             elif is_regressor(self):
                 self.base_ensemble_ = GradientBoostingRegressor(
                     n_estimators=self.n_estimators,
                     max_depth=self.tree_max_depth,
-                    random_state=self.random_state)
+                    random_state=self.random_state,
+                )
             else:
                 raise ValueError(
                     "You should choose an original classifier/regressor "
-                    "ensemble to use RuleCOSI method.")
+                    "ensemble to use RuleCOSI method."
+                )
         self.base_ensemble_.n_estimators = self.n_estimators
-        
+
         self.base_ensemble_.max_depth = self.tree_max_depth
         return clone(self.base_ensemble_)
-
