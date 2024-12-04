@@ -15,7 +15,7 @@ from bitarray import bitarray
 
 
 class BitarrayBackend(metaclass=ABCMeta):
-    """ Backend class for handling different libraries used for the array of
+    """Backend class for handling different libraries used for the array of
     bits representations and their related computations.
 
     """
@@ -64,7 +64,6 @@ class BitarrayBackend(metaclass=ABCMeta):
         :return:
         """
 
-
     @abstractmethod
     def get_array(self, bool_array):
         """
@@ -77,13 +76,13 @@ class BitarrayBackend(metaclass=ABCMeta):
 class PythonIntArray(BitarrayBackend):
     def generate_ones(self):
         return int.from_bytes(
-            np.packbits(np.ones(self.n, dtype=bool)),
-            byteorder=byteorder)
+            np.packbits(np.ones(self.n, dtype=bool)), byteorder=byteorder
+        )
 
     def generate_zeros(self):
         return int.from_bytes(
-            np.packbits(np.zeros(self.n, dtype=bool)),
-            byteorder=byteorder)
+            np.packbits(np.zeros(self.n, dtype=bool)), byteorder=byteorder
+        )
 
     def get_length(self, array):
         return array.bit_length()
@@ -95,8 +94,7 @@ class PythonIntArray(BitarrayBackend):
         return array ^ ones
 
     def get_array(self, bool_array):
-        return int.from_bytes(np.packbits(bool_array),
-                              byteorder=byteorder)
+        return int.from_bytes(np.packbits(bool_array), byteorder=byteorder)
 
 
 class BitArray(BitarrayBackend):
