@@ -35,17 +35,18 @@ class SCPruning:
             self.compute_heuristics()
 
             self.unpruned_rulesets.rules.sort(
-                key=lambda rule: (rule.conf, rule.cov, rule.supp), reverse=True
+                key=lambda rule: (rule.cov, rule.conf, rule.str, id(rule)),
+                reverse=True,
             )
 
             # ソート後のヒューリスティクスを表示
             # for i, rule in enumerate(self.unpruned_rulesets.rules[:5]):
-            # print(f"順位: {i+1}")
-            # print(f"  カバレッジ (Coverage): {rule.cov}")
-            # print(f"  信頼度 (Confidence): {rule.conf}")
-            # print(f"  サポート率 (Support): {rule.supp}")
-            # print(f"  ルール条件セット (Rule Conditions): {rule}")
-            # print("-" * 10)
+            #     print(f"順位: {i+1}")
+            #     print(f"  カバレッジ (Coverage): {rule.cov}")
+            #     print(f"  信頼度 (Confidence): {rule.conf}")
+            #     print(f"  サポート率 (Support): {rule.supp}")
+            #     print(f"  ルール条件セット (Rule Conditions): {rule}")
+            #     print("-" * 10)
 
             found_rule = False
             for i, rule in enumerate(self.unpruned_rulesets.rules):
