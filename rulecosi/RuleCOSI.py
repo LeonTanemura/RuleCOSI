@@ -20,6 +20,9 @@ from rule_making import RuleExtraction
 from ._simplify_rulesets import _simplify_rulesets
 from .combine import Combine
 from .pruning import SCPruning
+from rule_making import RuleSet
+from .generalize import generalize_ruleset
+from rule_making import RuleHeuristics
 
 
 def _ensemble_type(ensemble):
@@ -268,6 +271,7 @@ class RuleCOSIClassifier(ClassifierMixin, BaseRuleCOSI):
         tree_max_depth=3,
         cov_threshold=0.0,
         conf_threshold=0.5,
+        gene_confidence_level=0.25,
         c=0.25,
         percent_training=None,
         early_stop=0,
@@ -294,6 +298,7 @@ class RuleCOSIClassifier(ClassifierMixin, BaseRuleCOSI):
 
         self.cov_threshold = cov_threshold
         self.conf_threshold = conf_threshold
+        self.gene_confidence_level = gene_confidence_level
         self.c = c
         self.rule_order = rule_order
         self.sort_by_class = sort_by_class
@@ -466,6 +471,27 @@ class RuleCOSIClassifier(ClassifierMixin, BaseRuleCOSI):
         )
         print(f"pruned ruleset length: {len(self.pruned_rulesets_.rules)}")
         print("-----pruning completed-----")
+
+        self.pruned_rulesets_.print_rules()
+        # print(self.pruned_rulesets_)
+        print("-----generalize start-----")
+
+        self.generalized_rulesets_ = generalize_ruleset(
+            self.pruned_rulesets_,
+            alpha=self.gene_confidence_level,
+            beta=self.cov_threshold,
+            rule_heuristics=self._rule_heuristics,
+            global_condition_map=self._global_condition_map,
+            classes_=self.classes_,
+        )
+        print("-----generalize completed-----")
+
+        pri = RuleSet(
+            rules=self.generalized_rulesets_,
+            condition_map=self._global_condition_map,
+            classes=self.classes_,
+        )
+        print(pri.print_rules())
 
     def _more_tags(self):
         return {"binary_only": True}
