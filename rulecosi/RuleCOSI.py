@@ -20,6 +20,9 @@ from rule_making import RuleExtraction
 from ._simplify_rulesets import _simplify_rulesets
 from .combine import Combine
 from .pruning import SCPruning
+from rule_making import RuleSet
+from .generalize import generalize_ruleset
+from rule_making import RuleHeuristics
 
 
 def _ensemble_type(ensemble):
@@ -464,6 +467,39 @@ class RuleCOSIClassifier(ClassifierMixin, BaseRuleCOSI):
             self.combined_rulesets_
         )
         print("-----pruning completed-----")
+
+        pri = RuleSet(
+            rules=self.pruned_rulesets_,
+            condition_map=self._global_condition_map,
+            classes=self.classes_,
+        )
+        print(pri.print_rules())
+        # print(self.pruned_rulesets_)
+        print("-----generalize start-----")
+
+        self._rule_heuristics = RuleHeuristics(
+            X=self.X_,
+            y=self.y_,
+            classes_=self.classes_,
+            condition_map=self._global_condition_map,
+            cov_threshold=self.cov_threshold,
+            conf_threshold=self.conf_threshold,
+        )
+        self.generalized_rulesets_ = generalize_ruleset(
+            self.pruned_rulesets_,
+            self.conf_threshold,
+            self.cov_threshold,
+            0.95,
+            self._rule_heuristics,
+        )
+        print("-----generalize completed-----")
+
+        pri = RuleSet(
+            rules=self.generalized_rulesets_,
+            condition_map=self._global_condition_map,
+            classes=self.classes_,
+        )
+        print(pri.print_rules())
 
     def _more_tags(self):
         return {"binary_only": True}
