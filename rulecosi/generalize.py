@@ -1,12 +1,22 @@
 from rule_making import RuleSet, Rule
 
 
-def generalize_ruleset(ruleset, alpha, beta, confidence_level, rule_heuristics):
-    """Generalizes a given ruleset according to specified thresholds and heuristics."""
-    for rule in ruleset:
-        if not rule.A:  # If the rule has no conditions, skip it
-            continue
+def generalize_ruleset(
+    ruleset, beta, alpha, rule_heuristics, global_condition_map, classes_
+):
+    """
+    論文に基づいてルールセットを一般化する。
 
+    :param ruleset: 初期ルールセット（リスト形式）
+    :param beta: カバレッジの閾値
+    :param alpha: 信頼度の閾値
+    :param dataset: データセット（リスト形式）
+    :param rule_heuristics: ルールのカバレッジと信頼度を計算するためのオブジェクト
+    :return: 一般化されたルールセット
+    """
+    generalized_rules = []
+
+    for rule in ruleset:
         if rule_heuristics._cond_cov_dict is None:
             print("Initializing condition coverage dictionary...")
             rule_heuristics.initialize_sets()
@@ -14,42 +24,47 @@ def generalize_ruleset(ruleset, alpha, beta, confidence_level, rule_heuristics):
         heuristics_dict, _ = rule_heuristics.get_conditions_heuristics(rule.A)
 
         baseline_error = 1 - max(heuristics_dict["conf"])
-        min_error = baseline_error
+        min_error = 0
 
+        # 一般化ループ
         while min_error <= baseline_error and rule.A:
-            errors = [
-                (
-                    cond,
-                    1
-                    - max(
-                        rule_heuristics.get_conditions_heuristics(
-                            remove_condition(rule, cond).A
-                        )[0]["conf"]
-                    ),
+            # 各条件を削除して誤差を評価
+            errors = []
+            for cond in rule.A:
+                modified_rule = remove_condition(rule, cond)
+                new_heuristics, _ = rule_heuristics.get_conditions_heuristics(
+                    modified_rule.A
                 )
-                for cond in rule.A
-            ]
+                new_error = 1 - max(new_heuristics["conf"])
+                errors.append((cond, new_error))
+
+            # 最小の誤差を持つ条件を選択
             best_condition, min_error = min(errors, key=lambda x: x[1])
 
             if min_error <= baseline_error:
-                rule.A = remove_condition(
-                    rule, best_condition
-                ).A  # Update rule.A after removing the condition
+                rule.A = remove_condition(rule, best_condition).A  # 条件を削除
                 baseline_error = min_error
+                min_error = 0
 
-        # Check if rule meets the coverage and confidence thresholds
-        if not (heuristics_dict["cov"] > beta and max(heuristics_dict["conf"]) > alpha):
-            ruleset.remove(rule)
+        # カバレッジと信頼度が閾値を満たしているか確認
+        coverage = heuristics_dict["cov"]
+        confidence = max(heuristics_dict["conf"])
+        if coverage > beta and confidence > alpha:
+            generalized_rules.append(rule)
 
-    # Sort the rules based on confidence and coverage
-    # ruleset.rules.sort(
-    #     key=lambda r: (
-    #         max(rule_heuristics.get_conditions_heuristics(r.A)[0]["conf"]),
-    #         rule_heuristics.get_conditions_heuristics(r.A)[0]["cov"],
-    #     ),
-    #     reverse=True,
-    # )
-    return ruleset
+    generalized_ruleset = RuleSet(
+        rules=list(generalized_rules),
+        condition_map=global_condition_map,
+        classes=classes_,
+    )
+    generalized_ruleset = compute_heuristics(generalized_ruleset, rule_heuristics)
+    # 信頼度とカバレッジでソート
+    generalized_ruleset.rules.sort(
+        key=lambda rule: (rule.cov, rule.conf, rule.str, id(rule)),
+        reverse=True,
+    )
+
+    return generalized_ruleset
 
 
 def remove_condition(rule, condition):
@@ -75,3 +90,17 @@ def remove_condition(rule, condition):
         rule.class_index,
         classes=rule.classes,  # Ensure classes are passed correctly
     )
+
+    # ヒューリスティクスを再計算
+
+
+def compute_heuristics(ruleset, rule_heuristics):
+    if not rule_heuristics:
+        raise ValueError("Rule heuristics object not initialized.")
+
+    rule_heuristics.compute_rule_heuristics(
+        ruleset=ruleset,
+        not_cov_mask=rule_heuristics.ones,
+        recompute=True,
+    )
+    return ruleset
