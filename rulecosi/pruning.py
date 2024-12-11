@@ -32,12 +32,8 @@ class SCPruning:
         self.pruned_ruleset = set()
 
         while len(self.unpruned_rulesets.rules) > 0 and len(self.remaining_data) > 0:
-            self.compute_heuristics()
-
-            self.unpruned_rulesets.rules.sort(
-                key=lambda rule: (rule.cov, rule.conf, rule.str, id(rule)),
-                reverse=True,
-            )
+            self.compute_heuristics(self.unpruned_rulesets)
+            self.sort_heuristics(self.unpruned_rulesets)
 
             # ソート後のヒューリスティクスを表示
             # for i, rule in enumerate(self.unpruned_rulesets.rules[:5]):
@@ -76,15 +72,24 @@ class SCPruning:
             classes=self.classes_,
         )
 
+        self.compute_heuristics(self.pruned_ruleset)
+        self.sort_heuristics(self.pruned_ruleset)
+
         return self.pruned_ruleset
 
     # ヒューリスティクスを再計算
-    def compute_heuristics(self):
+    def compute_heuristics(self, ruleset):
         if not self.rule_heuristics:
             raise ValueError("Rule heuristics object not initialized.")
 
         self.rule_heuristics.compute_rule_heuristics(
-            ruleset=self.unpruned_rulesets,
+            ruleset=ruleset,
             not_cov_mask=self.not_cov_mask,
             recompute=True,
+        )
+
+    def sort_heuristics(self, ruleset):
+        ruleset.rules.sort(
+            key=lambda rule: (rule.cov, rule.conf, rule.str, id(rule)),
+            reverse=True,
         )
