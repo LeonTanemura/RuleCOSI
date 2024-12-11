@@ -451,6 +451,7 @@ class RuleCOSIClassifier(ClassifierMixin, BaseRuleCOSI):
         self.combined_rulesets_ = self.combiner.combine_rulesets(
             self.simplified_ruleset_
         )
+        print(f"combined ruleset length: {len(self.combined_rulesets_.rules)}")
         print("-----combine completed-----")
 
         print("-----pruning start-----")
@@ -466,6 +467,7 @@ class RuleCOSIClassifier(ClassifierMixin, BaseRuleCOSI):
         self.pruned_rulesets_ = self.pruner.sequential_covering_pruning(
             self.combined_rulesets_
         )
+        print(f"pruned ruleset length: {len(self.pruned_rulesets_.rules)}")
         print("-----pruning completed-----")
 
         pri = RuleSet(
