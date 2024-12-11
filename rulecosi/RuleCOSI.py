@@ -271,6 +271,7 @@ class RuleCOSIClassifier(ClassifierMixin, BaseRuleCOSI):
         tree_max_depth=3,
         cov_threshold=0.0,
         conf_threshold=0.5,
+        gene_confidence_level=0.25,
         c=0.25,
         percent_training=None,
         early_stop=0,
@@ -297,6 +298,7 @@ class RuleCOSIClassifier(ClassifierMixin, BaseRuleCOSI):
 
         self.cov_threshold = cov_threshold
         self.conf_threshold = conf_threshold
+        self.gene_confidence_level = gene_confidence_level
         self.c = c
         self.rule_order = rule_order
         self.sort_by_class = sort_by_class
@@ -470,29 +472,17 @@ class RuleCOSIClassifier(ClassifierMixin, BaseRuleCOSI):
         print(f"pruned ruleset length: {len(self.pruned_rulesets_.rules)}")
         print("-----pruning completed-----")
 
-        pri = RuleSet(
-            rules=self.pruned_rulesets_,
-            condition_map=self._global_condition_map,
-            classes=self.classes_,
-        )
-        print(pri.print_rules())
+        self.pruned_rulesets_.print_rules()
         # print(self.pruned_rulesets_)
         print("-----generalize start-----")
 
-        self._rule_heuristics = RuleHeuristics(
-            X=self.X_,
-            y=self.y_,
-            classes_=self.classes_,
-            condition_map=self._global_condition_map,
-            cov_threshold=self.cov_threshold,
-            conf_threshold=self.conf_threshold,
-        )
         self.generalized_rulesets_ = generalize_ruleset(
             self.pruned_rulesets_,
-            self.conf_threshold,
-            self.cov_threshold,
-            0.95,
-            self._rule_heuristics,
+            alpha=self.gene_confidence_level,
+            beta=self.cov_threshold,
+            rule_heuristics=self._rule_heuristics,
+            global_condition_map=self._global_condition_map,
+            classes_=self.classes_,
         )
         print("-----generalize completed-----")
 
