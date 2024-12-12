@@ -21,7 +21,7 @@ from ._simplify_rulesets import _simplify_rulesets
 from .combine import Combine
 from .pruning import SCPruning
 from rule_making import RuleSet
-from .generalize import generalize_ruleset
+from .generalize import Generalize
 from rule_making import RuleHeuristics
 
 
@@ -473,25 +473,24 @@ class RuleCOSIClassifier(ClassifierMixin, BaseRuleCOSI):
         print("-----pruning completed-----")
 
         self.pruned_rulesets_.print_rules()
-        # print(self.pruned_rulesets_)
-        print("-----generalize start-----")
 
-        self.generalized_rulesets_ = generalize_ruleset(
-            self.pruned_rulesets_,
+        print("-----generalize start-----")
+        self.gener = Generalize(
+            X_=self.X_,
+            y_=self.y_,
+            cov_threshold=self.cov_threshold,
+            conf_threshold=self.conf_threshold,
+            classes_=self.classes_,
+            global_condition_map=self._global_condition_map,
+            rule_heuristics=self._rule_heuristics,
+        )
+        self.generalized_rulesets_ = self.gener.generalize_ruleset(
+            ruleset=self.pruned_rulesets_,
             alpha=self.gene_confidence_level,
             beta=self.cov_threshold,
-            rule_heuristics=self._rule_heuristics,
-            global_condition_map=self._global_condition_map,
-            classes_=self.classes_,
         )
         print("-----generalize completed-----")
-
-        pri = RuleSet(
-            rules=self.generalized_rulesets_,
-            condition_map=self._global_condition_map,
-            classes=self.classes_,
-        )
-        print(pri.print_rules())
+        self.generalized_rulesets_.print_rules()
 
     def _more_tags(self):
         return {"binary_only": True}
