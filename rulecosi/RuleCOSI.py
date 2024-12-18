@@ -442,22 +442,22 @@ class RuleCOSIClassifier(ClassifierMixin, BaseRuleCOSI):
         self.simplified_ruleset_ = self.processed_rulesets_[0]
 
         for ruleset in self.processed_rulesets_[1:]:
-            print(f"initial ruleset length: {len(ruleset.rules)}")
+            # print(f"initial ruleset length: {len(ruleset.rules)}")
             self.combiner = self.class_maker("combine")
             self.simplified_ruleset_ = self.combiner.combine_rulesets(
                 self.simplified_ruleset_, ruleset
             )
-            print(f"combined ruleset length: {len(self.simplified_ruleset_.rules)}")
+            # print(f"combined ruleset length: {len(self.simplified_ruleset_.rules)}")
             self.pruner = self.class_maker("pruning")
             self.simplified_ruleset_ = self.pruner.sequential_covering_pruning(
                 self.simplified_ruleset_
             )
-            print(f"pruned ruleset length: {len(self.simplified_ruleset_.rules)}")
+            # print(f"pruned ruleset length: {len(self.simplified_ruleset_.rules)}")
             self.generalizer = self.class_maker("generalize")
             self.simplified_ruleset_ = self.generalizer.generalize_ruleset(
                 self.simplified_ruleset_
             )
-            print(f"generalized ruleset length: {len(self.simplified_ruleset_.rules)}")
+            # print(f"generalized ruleset length: {len(self.simplified_ruleset_.rules)}")
 
     def _more_tags(self):
         return {"binary_only": True}
