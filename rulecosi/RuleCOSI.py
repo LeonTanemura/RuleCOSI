@@ -583,6 +583,7 @@ class RuleCOSIClassifier(ClassifierMixin, BaseRuleCOSI):
                 y_=self.y_,
                 cov_threshold=self.cov_threshold,
                 conf_threshold=self.conf_threshold,
+                confidence_level=0.25,
                 classes_=self.classes_,
                 global_condition_map=self._global_condition_map,
                 rule_heuristics=self._rule_heuristics,
