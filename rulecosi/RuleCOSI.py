@@ -20,8 +20,8 @@ from rule_making import RuleExtraction
 from ._simplify_rulesets import _simplify_rulesets
 from .combine import Combine
 from .pruning import SCPruning
+from .generalize import Generalize
 from rule_making import RuleSet
-from .generalize import generalize_ruleset
 from rule_making import RuleHeuristics
 
 
@@ -271,7 +271,6 @@ class RuleCOSIClassifier(ClassifierMixin, BaseRuleCOSI):
         tree_max_depth=3,
         cov_threshold=0.0,
         conf_threshold=0.5,
-        gene_confidence_level=0.25,
         c=0.25,
         percent_training=None,
         early_stop=0,
@@ -298,7 +297,6 @@ class RuleCOSIClassifier(ClassifierMixin, BaseRuleCOSI):
 
         self.cov_threshold = cov_threshold
         self.conf_threshold = conf_threshold
-        self.gene_confidence_level = gene_confidence_level
         self.c = c
         self.rule_order = rule_order
         self.sort_by_class = sort_by_class
@@ -444,7 +442,7 @@ class RuleCOSIClassifier(ClassifierMixin, BaseRuleCOSI):
         self.simplified_ruleset_ = self.processed_rulesets_[0]
 
         for ruleset in self.processed_rulesets_[1:]:
-            print(f"initial ruleset length{len(ruleset.rules)}")
+            print(f"initial ruleset length: {len(ruleset.rules)}")
             self.combiner = self.class_maker("combine")
             self.simplified_ruleset_ = self.combiner.combine_rulesets(
                 self.simplified_ruleset_, ruleset
@@ -455,6 +453,11 @@ class RuleCOSIClassifier(ClassifierMixin, BaseRuleCOSI):
                 self.simplified_ruleset_
             )
             print(f"pruned ruleset length: {len(self.simplified_ruleset_.rules)}")
+            self.generalizer = self.class_maker("generalize")
+            self.simplified_ruleset_ = self.generalizer.generalize_ruleset(
+                self.simplified_ruleset_
+            )
+            print(f"generalized ruleset length: {len(self.simplified_ruleset_.rules)}")
 
     def _more_tags(self):
         return {"binary_only": True}
@@ -575,7 +578,15 @@ class RuleCOSIClassifier(ClassifierMixin, BaseRuleCOSI):
             )
 
         elif str == "generalize":
-            return None
+            return Generalize(
+                X_=self.X_,
+                y_=self.y_,
+                cov_threshold=self.cov_threshold,
+                conf_threshold=self.conf_threshold,
+                classes_=self.classes_,
+                global_condition_map=self._global_condition_map,
+                rule_heuristics=self._rule_heuristics,
+            )
 
         else:
             raise ValueError(
