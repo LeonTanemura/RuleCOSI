@@ -20,8 +20,8 @@ from rule_making import RuleExtraction
 from ._simplify_rulesets import _simplify_rulesets
 from .combine import Combine
 from .pruning import SCPruning
-from rule_making import RuleSet
 from .generalize import Generalize
+from rule_making import RuleSet
 from rule_making import RuleHeuristics
 
 
