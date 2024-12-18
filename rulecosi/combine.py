@@ -23,27 +23,8 @@ class Combine:
         self.global_condition_map = global_condition_map
         self.rule_heuristics = rule_heuristics
 
-    def combine_rulesets(self, simplified_ruleset_):
-        self.simplified_ruleset_ = simplified_ruleset_
-        self.combined_rulesets = set()
-
-        # すべてのルールセットを結合
-        for idx, ruleset in enumerate(self.simplified_ruleset_):
-            rs1 = ruleset
-            for rs2 in self.simplified_ruleset_[idx + 1 :]:
-                combined_result = self.combine(rs1, rs2)
-                self.combined_rulesets.update(combined_result)
-                # print("combine len : ", len(self.combined_rulesets))
-        self.combined_rulesets = RuleSet(
-            rules=list(self.combined_rulesets),
-            condition_map=self.global_condition_map,
-            classes=self.classes_,
-        )
-
-        return self.combined_rulesets
-
-    def combine(self, rs1, rs2):
-        combined_ruleset = set()
+    def combine_rulesets(self, rs1, rs2):
+        combined_rule = set()
         # print("rs1 : ", len(rs1.rules))
         # print("rs2 : ", len(rs2.rules))
         for r1 in rs1:
@@ -89,8 +70,14 @@ class Combine:
                         classes=self.classes_,
                     )
                     new_rule.set_heuristics(heuristics_dict)
-                    combined_ruleset.add(new_rule)
+                    combined_rule.add(new_rule)
 
         # print("combined ruleset length: ", len(combined_ruleset))
 
-        return combined_ruleset
+        combined_rulesets = RuleSet(
+            rules=list(combined_rule),
+            condition_map=self.global_condition_map,
+            classes=self.classes_,
+        )
+
+        return combined_rulesets

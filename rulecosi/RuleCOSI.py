@@ -435,60 +435,29 @@ class RuleCOSIClassifier(ClassifierMixin, BaseRuleCOSI):
         self.processed_rulesets_, self._global_condition_map, self._rule_heuristics = (
             self._rule_extractor.rule_extraction()
         )
-
         self.simplified_ruleset_ = _simplify_rulesets(
             self.processed_rulesets_, self._global_condition_map
         )
 
-        print("-----combine start-----")
-        self.combiner = Combine(
-            X_=self.X_,
-            y_=self.y_,
-            classes_=self.classes_,
-            global_condition_map=self._global_condition_map,
-            rule_heuristics=self._rule_heuristics,
-        )
-        self.combined_rulesets_ = self.combiner.combine_rulesets(
-            self.simplified_ruleset_
-        )
-        print(f"combined ruleset length: {len(self.combined_rulesets_.rules)}")
-        print("-----combine completed-----")
+        self.simplified_ruleset_ = self.processed_rulesets_[0]
 
-        print("-----pruning start-----")
-        self.pruner = SCPruning(
-            X_=self.X_,
-            y_=self.y_,
-            cov_threshold=self.cov_threshold,
-            conf_threshold=self.conf_threshold,
-            classes_=self.classes_,
-            global_condition_map=self._global_condition_map,
-            rule_heuristics=self._rule_heuristics,
-        )
-        self.pruned_rulesets_ = self.pruner.sequential_covering_pruning(
-            self.combined_rulesets_
-        )
-        print(f"pruned ruleset length: {len(self.pruned_rulesets_.rules)}")
-        print("-----pruning completed-----")
-
-        # self.pruned_rulesets_.print_rules()
-
-        print("-----generalize start-----")
-        self.gener = Generalize(
-            X_=self.X_,
-            y_=self.y_,
-            cov_threshold=self.cov_threshold,
-            conf_threshold=self.conf_threshold,
-            classes_=self.classes_,
-            global_condition_map=self._global_condition_map,
-            rule_heuristics=self._rule_heuristics,
-        )
-        self.generalized_rulesets_ = self.gener.generalize_ruleset(
-            ruleset=self.pruned_rulesets_,
-        )
-        print("-----generalize completed-----")
-        # self.generalized_rulesets_.print_rules()
-        self.simplified_ruleset_ = self.pruned_rulesets_
-        self.simplified_ruleset_ = self.generalized_rulesets_
+        for ruleset in self.processed_rulesets_[1:]:
+            # print(f"initial ruleset length: {len(ruleset.rules)}")
+            self.combiner = self.class_maker("combine")
+            self.simplified_ruleset_ = self.combiner.combine_rulesets(
+                self.simplified_ruleset_, ruleset
+            )
+            # print(f"combined ruleset length: {len(self.simplified_ruleset_.rules)}")
+            self.pruner = self.class_maker("pruning")
+            self.simplified_ruleset_ = self.pruner.sequential_covering_pruning(
+                self.simplified_ruleset_
+            )
+            # print(f"pruned ruleset length: {len(self.simplified_ruleset_.rules)}")
+            self.generalizer = self.class_maker("generalize")
+            self.simplified_ruleset_ = self.generalizer.generalize_ruleset(
+                self.simplified_ruleset_
+            )
+            # print(f"generalized ruleset length: {len(self.simplified_ruleset_.rules)}")
 
     def _more_tags(self):
         return {"binary_only": True}
@@ -586,3 +555,41 @@ class RuleCOSIClassifier(ClassifierMixin, BaseRuleCOSI):
 
         self.base_ensemble_.max_depth = self.tree_max_depth
         return clone(self.base_ensemble_)
+
+    def class_maker(self, str):
+        if str == "combine":
+            return Combine(
+                X_=self.X_,
+                y_=self.y_,
+                classes_=self.classes_,
+                global_condition_map=self._global_condition_map,
+                rule_heuristics=self._rule_heuristics,
+            )
+
+        elif str == "pruning":
+            return SCPruning(
+                X_=self.X_,
+                y_=self.y_,
+                cov_threshold=self.cov_threshold,
+                conf_threshold=self.conf_threshold,
+                classes_=self.classes_,
+                global_condition_map=self._global_condition_map,
+                rule_heuristics=self._rule_heuristics,
+            )
+
+        elif str == "generalize":
+            return Generalize(
+                X_=self.X_,
+                y_=self.y_,
+                cov_threshold=self.cov_threshold,
+                conf_threshold=self.conf_threshold,
+                classes_=self.classes_,
+                global_condition_map=self._global_condition_map,
+                rule_heuristics=self._rule_heuristics,
+            )
+
+        else:
+            raise ValueError(
+                f"Invalid argument '{str}' passed to class_maker. "
+                "Expected one of: 'combine', 'pruning', 'generalize'."
+            )
