@@ -102,7 +102,7 @@ class ExpBase:
             model, time = self.each_fold(i_fold, train_data, val_data)
 
             print("rule作成成功")
-            exit()  # RuleCOSI+のアルゴリズムを作成しないと以下を実行できない。
+            # exit()  # RuleCOSI+のアルゴリズムを作成しないと以下を実行できない。
 
             score = cal_metrics(model, val_data, self.columns, self.target_column)
             score.update(
