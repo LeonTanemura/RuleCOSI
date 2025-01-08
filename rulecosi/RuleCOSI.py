@@ -21,7 +21,7 @@ from ._simplify_rulesets import _simplify_rulesets
 from .combine import Combine
 from .pruning import SCPruning
 from .generalize import Generalize
-from rule_making import RuleSet
+from rule_making import RuleSet, Rule
 from rule_making import RuleHeuristics
 from .utils import sort_ruleset
 
@@ -602,4 +602,48 @@ class RuleCOSIClassifier(ClassifierMixin, BaseRuleCOSI):
             )
 
     def add_default_ruleset(self):
-        pass
+        remaining_data = self.X_.copy()
+        remaining_labels = self.y_.copy()
+
+        # 全体でカバーされているマスクを追跡する
+        overall_covered_mask = np.zeros(len(remaining_data), dtype=bool)
+
+        # 各ルールを適用
+        for i, rule in enumerate(self.simplified_ruleset_.rules):
+            _, covered_mask = rule.predict(remaining_data)  # 各ルールのマスク
+
+            # カバーされたデータを更新
+            overall_covered_mask |= covered_mask
+
+        # 全てのルールでカバーされなかったデータを抽出
+        uncovered_data = remaining_data[~overall_covered_mask]
+        uncovered_labels = remaining_labels[~overall_covered_mask]
+
+        # print(f"Data not covered by any rule:\n{uncovered_data}")
+        # print(f"Labels not covered by any rule:\n{uncovered_labels}")
+
+        if len(uncovered_labels) > 0:
+            unique_labels, label_counts = np.unique(
+                uncovered_labels, return_counts=True
+            )
+            majority_label = np.array([unique_labels[np.argmax(label_counts)]])
+            y_class_index = np.where(self.classes_ == majority_label)[0][0]
+            # print(f"Majority label: {majority_label} (Counts: {label_counts})")
+            default_rule = Rule(
+                conditions=[],
+                class_dist=None,
+                ens_class_dist=None,
+                local_class_dist=None,
+                logit_score=0,
+                y=majority_label,
+                y_class_index=y_class_index,
+                classes=self.classes_,
+            )
+            self.simplified_ruleset_.rules.append(default_rule)
+            self._rule_heuristics.compute_rule_heuristics(
+                ruleset=self.simplified_ruleset_,
+                recompute=True,
+            )
+        else:
+            majority_label = None
+            print("No uncovered labels to take a majority vote.")
