@@ -1,5 +1,6 @@
 import numpy as np
 from rule_making import RuleSet
+from .utils import sort_ruleset
 
 
 class SCPruning:
@@ -33,7 +34,7 @@ class SCPruning:
 
         while len(self.unpruned_rulesets.rules) > 0 and len(self.remaining_data) > 0:
             self.compute_heuristics(self.unpruned_rulesets)
-            self.sort_heuristics(self.unpruned_rulesets)
+            sort_ruleset(self.unpruned_rulesets)
 
             # ソート後のヒューリスティクスを表示
             # for i, rule in enumerate(self.unpruned_rulesets.rules[:5]):
@@ -73,7 +74,7 @@ class SCPruning:
         )
 
         self.compute_heuristics(self.pruned_ruleset)
-        self.sort_heuristics(self.pruned_ruleset)
+        sort_ruleset(self.pruned_ruleset)
 
         return self.pruned_ruleset
 
@@ -86,10 +87,4 @@ class SCPruning:
             ruleset=ruleset,
             not_cov_mask=self.not_cov_mask,
             recompute=True,
-        )
-
-    def sort_heuristics(self, ruleset):
-        ruleset.rules.sort(
-            key=lambda rule: (rule.cov, rule.conf, rule.str, id(rule)),
-            reverse=True,
         )

@@ -23,6 +23,7 @@ from .pruning import SCPruning
 from .generalize import Generalize
 from rule_making import RuleSet
 from rule_making import RuleHeuristics
+from .utils import sort_ruleset
 
 
 def _ensemble_type(ensemble):
@@ -435,9 +436,12 @@ class RuleCOSIClassifier(ClassifierMixin, BaseRuleCOSI):
         self.processed_rulesets_, self._global_condition_map, self._rule_heuristics = (
             self._rule_extractor.rule_extraction()
         )
-        self.simplified_ruleset_ = _simplify_rulesets(
+        self.processed_rulesets_ = _simplify_rulesets(
             self.processed_rulesets_, self._global_condition_map
         )
+
+        for ruleset in self.processed_rulesets_:
+            sort_ruleset(ruleset)
 
         self.simplified_ruleset_ = self.processed_rulesets_[0]
 
@@ -458,6 +462,8 @@ class RuleCOSIClassifier(ClassifierMixin, BaseRuleCOSI):
                 self.simplified_ruleset_
             )
             # print(f"generalized ruleset length: {len(self.simplified_ruleset_.rules)}")
+
+        self.add_default_ruleset()
 
     def _more_tags(self):
         return {"binary_only": True}
@@ -594,3 +600,6 @@ class RuleCOSIClassifier(ClassifierMixin, BaseRuleCOSI):
                 f"Invalid argument '{str}' passed to class_maker. "
                 "Expected one of: 'combine', 'pruning', 'generalize'."
             )
+
+    def add_default_ruleset(self):
+        pass

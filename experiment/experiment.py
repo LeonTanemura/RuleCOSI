@@ -101,7 +101,7 @@ class ExpBase:
             train_data, val_data = self.train.iloc[train_idx], self.train.iloc[val_idx]
             model, time = self.each_fold(i_fold, train_data, val_data)
 
-            print("rule作成成功")
+            # print("rule作成成功")
             # exit()  # RuleCOSI+のアルゴリズムを作成しないと以下を実行できない。
 
             score = cal_metrics(model, val_data, self.columns, self.target_column)
