@@ -463,6 +463,13 @@ class RuleCOSIClassifier(ClassifierMixin, BaseRuleCOSI):
             )
             # print(f"generalized ruleset length: {len(self.simplified_ruleset_.rules)}")
 
+            # early stopping
+            self.simplified_ruleset_.compute_class_perf(
+                self.X_, self.y_, metric=self.metric
+            )
+            if self.simplified_ruleset_.metric(metric=self.metric) == 1:
+                break
+
         self.add_default_ruleset()
 
     def _more_tags(self):
