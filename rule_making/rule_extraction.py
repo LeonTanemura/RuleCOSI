@@ -46,8 +46,9 @@ import numpy as np
 from math import copysign
 
 from scipy.special import expit
-from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
 
+from .helpers import count_keys
 from .rules import RuleSet, Condition, Rule
 
 
@@ -243,6 +244,104 @@ class BaseRuleExtractor(metaclass=ABCMeta):
 
 def get_class_dist(raw_to_proba):
     return np.array([1 - raw_to_proba.item(), raw_to_proba.item()])
+
+
+class ClassifierRuleExtractor(BaseRuleExtractor):
+    """Rule extraction of a tree ensemble classifier such as Bagging or
+    Random Forest
+
+    Parameters
+    ----------
+    base_ensemble: BaseEnsemble object, default = None
+        A BaseEnsemble estimator object. The supported types are:
+        - :class:`sklearn.ensemble.RandomForestClassifier`
+        - :class:`sklearn.ensemble.BaggingClassifier`
+
+
+    column_names: array of string, default=None Array of strings with the
+    name of the columns in the data. This is useful for displaying the name
+    of the features in the generated rules.
+
+    classes: ndarray, shape (n_classes,)
+        The classes seen when fitting the ensemble.
+
+    X: array-like, shape (n_samples, n_features)
+        The training input samples.
+
+    """
+
+    def extract_rules(self):
+        """Main method for extracting the rules of tree ensembles
+
+        :return: an array of :class:`rulecosi.rules.RuleSet'
+        """
+        rulesets = []
+        global_condition_map = dict()
+
+        for base_tree in self._ensemble:
+            original_ruleset = self.get_base_ruleset(self.get_tree_dict(base_tree))
+            rulesets.append(original_ruleset)
+            global_condition_map.update(original_ruleset.condition_map)
+        return rulesets, global_condition_map
+
+    def create_new_rule(
+        self,
+        node_index,
+        tree_dict,
+        condition_set=None,
+        logit_score=None,
+        weights=None,
+        tree_index=None,
+        class_index=None,
+    ):
+        """Creates a new rule with all the information in the parameters
+
+        :param node_index: the index of the leaf node
+
+        :param tree_dict: a dictionary containing  the information of the
+        base_tree (arrays on :class: `sklearn.tree.Tree` class
+
+        :param condition_set: set of :class:`rulecosi.rule.Condition` objects
+        of the new rule
+
+        :param logit_score: logit_score of the rule (only applies for
+        Gradient Boosting Trees)
+
+        :param weights: weight of the new rule
+
+        :param class_index: index of the class that this rule predicts
+
+        :param tree_index: index of the tree inside the ensemble
+
+        :return: a :class:`rulecosi.rules.Rule` object
+        """
+        if condition_set is None:
+            condition_set = {}
+        value = tree_dict["value"]
+        n_samples = tree_dict["n_samples"]
+
+        if weights is not None:
+            weight = weights[tree_index]
+        else:
+            weight = None
+        class_dist = (value[node_index] / value[node_index].sum()).reshape(
+            (len(self.classes_),)
+        )
+        # predict y_class_index = np.argmax(class_dist).item()
+        y_class_index = np.argmax(class_dist)
+        y = np.array([self.classes_[y_class_index]])
+
+        return Rule(
+            frozenset(condition_set),
+            class_dist=class_dist,
+            ens_class_dist=class_dist,
+            logit_score=logit_score,
+            y=y,
+            y_class_index=y_class_index,
+            n_samples=n_samples[node_index],
+            classes=self.classes_,
+            weight=weight,
+        )
 
 
 class GBMClassifierRuleExtractor(BaseRuleExtractor):
@@ -531,6 +630,147 @@ class XGBClassifierExtractor(GBMClassifierRuleExtractor):
             return self._ensemble.base_score
 
 
+class LGBMClassifierExtractor(GBMClassifierRuleExtractor):
+    """Rule extraction for a Gradient Boosting Tree ensemble classifier.
+    This class accept only Light GBM implementation
+
+    Parameters
+    ----------
+    base_ensemble: BaseEnsemble object, default = None
+        A BaseEnsemble estimator object. The supported types are:
+            - :class:`lightgbm.LGBMClassifier`
+
+
+    column_names: array of string, default=None Array of strings with the
+    name of the columns in the data. This is useful for displaying the name
+    of the features in the generated rules.
+
+    classes: ndarray, shape (n_classes,)
+        The classes seen when fitting the ensemble.
+
+    X: array-like, shape (n_samples, n_features)
+        The training input samples.
+
+    """
+
+    def extract_rules(self):
+        """Main method for extracting the rules of tree ensembles
+
+        :return: an array of :class:`rulecosi.rules.RuleSet'
+        """
+        rulesets = []
+        global_condition_map = dict()
+        booster = self._ensemble.booster_
+        lgbm_tree_dicts = booster.dump_model()["tree_info"]
+
+        if len(self.classes_) > 2:
+            t_idx = 0
+            for tid in range(self._ensemble.n_estimators):
+                current_tree_rules = []
+                current_tree_condition_map = dict()
+                for cid, _ in enumerate(self.classes_):
+                    n_nodes = count_keys(
+                        lgbm_tree_dicts[t_idx], "split_index"
+                    ) + count_keys(lgbm_tree_dicts[t_idx], "leaf_index")
+                    original_ruleset = self.get_base_ruleset(
+                        self.get_tree_dict(lgbm_tree_dicts[t_idx], n_nodes),
+                        class_index=cid,
+                        tree_index=tid,
+                    )
+                    current_tree_rules.extend(original_ruleset.rules)
+                    current_tree_condition_map.update(original_ruleset.condition_map)
+                    t_idx += 1
+                current_tree_ruleset = RuleSet(
+                    current_tree_rules,
+                    current_tree_condition_map,
+                    classes=self.classes_,
+                )
+                global_condition_map.update(current_tree_ruleset.condition_map)
+                rulesets.append(current_tree_ruleset)
+            return rulesets, global_condition_map
+
+        else:  # binary classification
+            for tree_index, lgbm_tree_dict in enumerate(lgbm_tree_dicts):
+                n_nodes = count_keys(lgbm_tree_dict, "split_index") + count_keys(
+                    lgbm_tree_dict, "leaf_index"
+                )
+
+                original_ruleset = self.get_base_ruleset(
+                    self.get_tree_dict(lgbm_tree_dict, n_nodes),
+                    class_index=0,
+                    tree_index=tree_index,
+                )
+                rulesets.append(original_ruleset)
+                global_condition_map.update(original_ruleset.condition_map)
+            return rulesets, global_condition_map
+
+    # def _get_class_dist(self, raw_to_proba):
+    #     return np.array([raw_to_proba.item(), 1 - raw_to_proba.item()])
+
+    def get_tree_dict(self, base_tree, n_nodes=0):
+        """Create a dictionary with the information inside the base_tree
+
+        :param base_tree: :class: `sklearn.tree.Tree` object wich is an array
+        representation of a tree
+
+        :param n_nodes: number of nodes in the tree
+
+        :return: a dictionary conatining the information of the base_tree
+        """
+        tree_dict = {
+            "children_left": np.full(n_nodes, fill_value=-1),
+            "children_right": np.full(n_nodes, fill_value=-1),
+            "feature": np.full(n_nodes, fill_value=0),
+            "threshold": np.full(n_nodes, fill_value=0.0),
+            "value": np.full(n_nodes, fill_value=0.0),
+            "n_samples": np.full(n_nodes, fill_value=-1),
+            "n_nodes": n_nodes,
+        }
+
+        self._populate_tree_dict(base_tree["tree_structure"], 0, 0, tree_dict)
+        return tree_dict
+
+    def _populate_tree_dict(self, tree, node_id, node_count, tree_dict):
+        """Populate the tree dictionary specifically for this type of GBM
+        implementation. This is needed because each GBM implementation output
+        the trees in different formats
+
+        :param tree: the current tree to be used as a source
+
+        :param tree_dict: a dictionary containing  the information of the
+        base_tree (arrays on :class: `sklearn.tree.Tree` class
+
+        """
+        if "leaf_value" in tree:
+            tree_dict["value"][node_id] = tree["leaf_value"]
+            return node_count
+        if "left_child" in tree:
+            tree_dict["feature"][node_id] = tree["split_feature"]
+            tree_dict["threshold"][node_id] = tree["threshold"]
+
+            node_count = node_count + 1
+            l_id = node_count
+            tree_dict["children_left"][node_id] = l_id
+            node_count = self._populate_tree_dict(
+                tree["left_child"], l_id, node_count, tree_dict
+            )
+
+            node_count = node_count + 1
+            r_id = node_count
+            tree_dict["children_right"][node_id] = r_id
+            node_count = self._populate_tree_dict(
+                tree["right_child"], r_id, node_count, tree_dict
+            )
+            return node_count
+
+    def _get_gbm_init(self):
+        """get the initial estimate of a GBM ensemble
+
+        :return: a double value of the initial estimate of the GBM ensemble
+        """
+        return self.class_ratio
+
+
 class RuleExtractorFactory:
     """Factory class for getting an implementation of a BaseRuleExtractor"""
 
@@ -563,8 +803,18 @@ class RuleExtractorFactory:
             return GBMClassifierRuleExtractor(
                 base_ensemble, column_names, classes, X, y, float_threshold
             )
+        elif isinstance(base_ensemble, RandomForestClassifier):
+            return ClassifierRuleExtractor(
+                base_ensemble, column_names, classes, X, y, float_threshold
+            )
         elif str(base_ensemble.__class__) == "<class 'xgboost.sklearn.XGBClassifier'>":
             return XGBClassifierExtractor(
+                base_ensemble, column_names, classes, X, y, float_threshold
+            )
+        elif (
+            str(base_ensemble.__class__) == "<class 'lightgbm.sklearn.LGBMClassifier'>"
+        ):
+            return LGBMClassifierExtractor(
                 base_ensemble, column_names, classes, X, y, float_threshold
             )
         else:
