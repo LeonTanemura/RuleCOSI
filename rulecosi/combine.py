@@ -1,6 +1,8 @@
 import numpy as np
+
 from rule_making import Rule, RuleSet
 from ._simplify_rulesets import _simplify_conditions
+from .utils import sort_ruleset
 
 
 class Combine:
@@ -27,6 +29,8 @@ class Combine:
         combined_rule = set()
         # print("rs1 : ", len(rs1.rules))
         # print("rs2 : ", len(rs2.rules))
+        sort_ruleset(rs1)
+        sort_ruleset(rs2)
         for r1 in rs1:
             for r2 in rs2:
                 # print("r1 conditions: ", r1.A)
@@ -79,5 +83,6 @@ class Combine:
             condition_map=self.global_condition_map,
             classes=self.classes_,
         )
+        sort_ruleset(combined_rulesets)
 
         return combined_rulesets

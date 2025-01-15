@@ -1,7 +1,8 @@
-from rule_making import RuleSet, Rule
-
 from math import sqrt
 from scipy.stats import norm
+
+from rule_making import RuleSet, Rule
+from .utils import sort_ruleset
 
 
 class Generalize:
@@ -84,10 +85,7 @@ class Generalize:
         )
         self.compute_heuristics(self.generalized_ruleset)
         # 信頼度とカバレッジでソート
-        self.generalized_ruleset.rules.sort(
-            key=lambda rule: (rule.cov, rule.conf, rule.str, id(rule)),
-            reverse=True,
-        )
+        sort_ruleset(self.generalized_ruleset)
 
         return self.generalized_ruleset
 
