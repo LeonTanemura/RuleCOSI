@@ -5,6 +5,9 @@ from typing import List
 
 import numpy as np
 import xgboost as xgb
+import lightgbm as lgb
+from sklearn.ensemble import RandomForestClassifier as SklearnRFClassifier
+
 from scipy.special import softmax
 from sklearn.metrics import (
     accuracy_score,
@@ -86,19 +89,36 @@ class BaseClassifier:
 class RuleCOSIClassifier(BaseClassifier):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        xgb_config = self.model_config.ensemble
+        ensemble_config = self.model_config.ensemble
+        self.ensemble_name = self.model_config.name
         rulecosi_config = self.model_config.rulecosi
 
         if self.output_dim == 2:
-            xgb_config["objective"] = "binary:logitraw"
+            ensemble_config["objective"] = "binary:logitraw"
         else:
-            xgb_config["objective"] = "multi:softmax"
+            ensemble_config["objective"] = "multi:softmax"
 
         if self.pre_model is not None:
             self.ens = self.pre_model
+        elif self.ensemble_name == "randomforest":
+            if "objective" in ensemble_config:
+                ensemble_config = dict(ensemble_config)  # DictConfigを普通の辞書に変換
+                ensemble_config.pop("objective", None)  # 'objective'を削除
+
+            self.ens = SklearnRFClassifier(
+                **ensemble_config,
+            )
+        elif self.ensemble_name == "lightgbm":
+            ensemble_config["objective"] = "binary"
+            self.ens = lgb.LGBMClassifier(
+                **ensemble_config,
+                num_class=self.output_dim if self.output_dim > 2 else None,
+                eval_metric="auc",
+                early_stopping_rounds=10,
+            )
         else:
             self.ens = xgb.XGBClassifier(
-                **xgb_config,
+                **ensemble_config,
                 num_class=self.output_dim if self.output_dim > 2 else None,
                 eval_metric="auc",
                 early_stopping_rounds=10,
@@ -118,7 +138,14 @@ class RuleCOSIClassifier(BaseClassifier):
         )
 
     def fit(self, X, y, eval_set):
-        if self.pre_model is None:
+        if self.ensemble_name == "randomforest":
+            X_rf, y_rf = check_X_y(X, y)
+            self.ens.fit(X_rf, y_rf)
+        elif self.ensemble_name == "lightgbm":
+            X_lgb, y_lgb = check_X_y(X, y)
+            eval_set_lgb = check_X_y(*eval_set)
+            self.ens.fit(X_lgb, y_lgb, eval_set=[eval_set_lgb])
+        else:
             X_xgb, y_xgb = check_X_y(X, y)
             eval_set_xgb = check_X_y(*eval_set)
             self.ens.fit(X_xgb, y_xgb, eval_set=[eval_set_xgb], verbose=False)
@@ -165,6 +192,53 @@ class XGBoostClassifier(BaseClassifier):
         return self.xgb.get_booster()
 
 
+class LightGBMClassifier(BaseClassifier):
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+
+        if self.output_dim == 2:
+            self.model_config["objective"] = "binary"
+        else:
+            self.model_config["objective"] = "multiclass"
+            self.model_config["num_class"] = self.output_dim
+
+        self.lgbm = lgb.LGBMClassifier(**self.model_config)
+
+    def fit(self, X, y, eval_set):
+        self._column_names = X.columns
+        X, y = check_X_y(X, y)
+        eval_set_X, eval_set_y = check_X_y(*eval_set)
+        eval_set = [(eval_set_X, eval_set_y)]
+
+        self.lgbm.fit(X, y, eval_set=eval_set, verbose=self.verbose)
+
+    def predict_proba(self, X):
+        return self.lgbm.predict_proba(X)
+
+    def predict(self, X):
+        return self.lgbm.predict(X)
+
+
+class RandomForestClassifier(BaseClassifier):
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+
+        self.rf = SklearnRFClassifier(**self.model_config)
+
+    def fit(self, X, y, eval_set=None):
+        # eval_set is ignored for RandomForest
+        self._column_names = X.columns
+        X, y = check_X_y(X, y)
+
+        self.rf.fit(X, y)
+
+    def predict_proba(self, X):
+        return self.rf.predict_proba(X)
+
+    def predict(self, X):
+        return self.rf.predict(X)
+
+
 def get_classifier(
     name,
     *,
@@ -194,6 +268,12 @@ def get_classifier(
             verbose,
             pre_study,
             pre_model,
+        )
+    elif name == "lightgbm":
+        return LightGBMClassifier(input_dim, output_dim, model_config, init_y, onehoter)
+    elif name == "randomforest":
+        return RandomForestClassifier(
+            input_dim, output_dim, model_config, init_y, onehoter, verbose
         )
     else:
         raise KeyError(f"{name} is not defined.")

@@ -27,26 +27,42 @@ from .utils import sort_ruleset
 
 
 def _ensemble_type(ensemble):
-    """Return the ensemble type
+    """Return the ensemble type based on the ensemble object provided.
 
-    :param ensemble:
-    :return:
+    :param ensemble: The ensemble object to determine the type of.
+    :return: A string representing the ensemble type.
     """
-    if isinstance(ensemble, GradientBoostingClassifier):
-        return "gbt"
-    elif str(ensemble.__class__) == "<class 'xgboost.sklearn.XGBClassifier'>":
-        try:
-            from xgboost import XGBClassifier
-        except ModuleNotFoundError:
-            raise ModuleNotFoundError(
-                "If you want to use "
-                "xgboost.sklearn.XGBClassifier "
-                "ensembles you should install xgboost "
-                "library."
-            )
-        return "gbt"
-    else:
-        raise NotImplementedError
+    try:
+        # Check for GradientBoostingClassifier
+        from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
+
+        if isinstance(ensemble, GradientBoostingClassifier):
+            return "gbt"
+        elif isinstance(ensemble, RandomForestClassifier):
+            return "rf"
+
+        # Check for XGBoost
+        from xgboost import XGBClassifier
+
+        if isinstance(ensemble, XGBClassifier):
+            return "gbt"
+
+        # Check for LightGBM
+        from lightgbm import LGBMClassifier
+
+        if isinstance(ensemble, LGBMClassifier):
+            return "gbt"
+
+    except ModuleNotFoundError as e:
+        raise ModuleNotFoundError(
+            f"{str(e)}\n"
+            "Ensure all required libraries (xgboost, lightgbm, etc.) are installed."
+        )
+
+    # If no match found, raise NotImplementedError
+    raise NotImplementedError(
+        f"Ensemble type {type(ensemble)} is not implemented in this function."
+    )
 
 
 class BaseRuleCOSI(BaseEstimator, metaclass=ABCMeta):
